@@ -268,12 +268,12 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
         <Button
           onClick={captureAndScan}
           disabled={isScanning}
-          size="lg"
+          size="default"
           variant="outline"
-          className="rounded-full h-16 px-6 flex-1 max-w-[200px]"
+          className="rounded-full h-12 px-4 flex-1 max-w-[160px]"
         >
-          <Camera className="h-5 w-5 mr-2" />
-          Basic Scan
+          <Camera className="h-4 w-4 mr-2" />
+          Offline Scan
         </Button>
       </div>
 
