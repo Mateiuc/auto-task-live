@@ -194,6 +194,8 @@ export const AddVehicleDialog = ({
           onVinDetected={handleVinDetected}
           onClose={() => setShowVinScanner(false)}
           googleApiKey={settings.googleApiKey}
+          grokApiKey={settings.grokApiKey}
+          ocrProvider={settings.ocrProvider}
         />
                   </div>
                 </div> : <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">

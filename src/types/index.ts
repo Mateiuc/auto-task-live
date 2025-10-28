@@ -66,5 +66,7 @@ export interface BackupSettings {
 export interface Settings {
   defaultHourlyRate: number;
   googleApiKey?: string;
+  grokApiKey?: string;
+  ocrProvider?: 'gemini' | 'grok';
   backup?: BackupSettings;
 }

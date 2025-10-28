@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Settings, Task, Client, Vehicle } from '@/types';
 import { ChevronLeft, ChevronRight, Download, Upload, Cloud } from 'lucide-react';
 import { TaskCard } from './TaskCard';
@@ -72,15 +73,21 @@ export const SettingsDialog = ({
   }, [open]);
 
   const [googleApiKey, setGoogleApiKey] = useState(settings.googleApiKey || '');
+  const [grokApiKey, setGrokApiKey] = useState(settings.grokApiKey || '');
+  const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok'>(settings.ocrProvider || 'gemini');
 
   useEffect(() => {
     setGoogleApiKey(settings.googleApiKey || '');
-  }, [settings.googleApiKey]);
+    setGrokApiKey(settings.grokApiKey || '');
+    setOcrProvider(settings.ocrProvider || 'gemini');
+  }, [settings.googleApiKey, settings.grokApiKey, settings.ocrProvider]);
 
   const handleSaveSettings = () => {
     onSave({
       defaultHourlyRate: parseFloat(hourlyRate) || 75,
       googleApiKey: googleApiKey.trim() || undefined,
+      grokApiKey: grokApiKey.trim() || undefined,
+      ocrProvider,
     });
     setCurrentView('menu');
   };
@@ -285,26 +292,66 @@ export const SettingsDialog = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Google AI API Key (for VIN OCR)</Label>
-                <Input
-                  type="password"
-                  value={googleApiKey}
-                  onChange={(e) => setGoogleApiKey(e.target.value)}
-                  placeholder="Enter API key from aistudio.google.com/apikey"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Optional: Enables AI-powered VIN scanning. Get your key from{' '}
-                  <a 
-                    href="https://aistudio.google.com/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="underline text-primary"
-                  >
-                    Google AI Studio
-                  </a>
-                  . Restrict by HTTP referrer for security.
-                </p>
+                <Label>OCR Provider (for VIN Scanning)</Label>
+                <RadioGroup value={ocrProvider} onValueChange={(value) => setOcrProvider(value as 'gemini' | 'grok')}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="gemini" id="gemini" />
+                    <Label htmlFor="gemini" className="font-normal cursor-pointer">Google Gemini</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="grok" id="grok" />
+                    <Label htmlFor="grok" className="font-normal cursor-pointer">Grok AI</Label>
+                  </div>
+                </RadioGroup>
               </div>
+
+              {ocrProvider === 'gemini' && (
+                <div className="space-y-2">
+                  <Label>Google AI API Key</Label>
+                  <Input
+                    type="password"
+                    value={googleApiKey}
+                    onChange={(e) => setGoogleApiKey(e.target.value)}
+                    placeholder="Enter API key from aistudio.google.com/apikey"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Get your key from{' '}
+                    <a 
+                      href="https://aistudio.google.com/apikey" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline text-primary"
+                    >
+                      Google AI Studio
+                    </a>
+                    . Restrict by HTTP referrer for security.
+                  </p>
+                </div>
+              )}
+
+              {ocrProvider === 'grok' && (
+                <div className="space-y-2">
+                  <Label>Grok API Key</Label>
+                  <Input
+                    type="password"
+                    value={grokApiKey}
+                    onChange={(e) => setGrokApiKey(e.target.value)}
+                    placeholder="Enter API key from console.x.ai"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Get your key from{' '}
+                    <a 
+                      href="https://console.x.ai" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline text-primary"
+                    >
+                      xAI Console
+                    </a>
+                    . Enables Grok-powered VIN scanning.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

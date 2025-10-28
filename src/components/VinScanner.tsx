@@ -3,14 +3,23 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { validateVin } from '@/lib/vinDecoder';
 import { readVinWithGemini } from '@/lib/geminiVinOcr';
+import { readVinWithGrok } from '@/lib/grokVinOcr';
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
   onClose: () => void;
   googleApiKey?: string;
+  grokApiKey?: string;
+  ocrProvider?: 'gemini' | 'grok';
 }
 
-const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey }) => {
+const VinScanner: React.FC<VinScannerProps> = ({ 
+  onVinDetected, 
+  onClose, 
+  googleApiKey, 
+  grokApiKey, 
+  ocrProvider = 'gemini' 
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,12 +84,13 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     return () => video.removeEventListener('loadedmetadata', handleMetadataLoaded);
   }, [stream]);
 
-  // Auto-start continuous Gemini scan when frame is ready
+  // Auto-start continuous OCR scan when frame is ready
   useEffect(() => {
-    if (googleApiKey && isFrameReady && stream && !scanningRef.current) {
-      startContinuousGeminiScan();
+    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || (ocrProvider === 'gemini' && googleApiKey);
+    if (hasApiKey && isFrameReady && stream && !scanningRef.current) {
+      startContinuousOcrScan();
     }
-  }, [googleApiKey, isFrameReady, stream]);
+  }, [googleApiKey, grokApiKey, ocrProvider, isFrameReady, stream]);
 
   const startCamera = async () => {
     try {
@@ -102,8 +112,9 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     }
   };
 
-  const startContinuousGeminiScan = async () => {
-    if (!videoRef.current || !canvasRef.current || !googleApiKey) return;
+  const startContinuousOcrScan = async () => {
+    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || (ocrProvider === 'gemini' && googleApiKey);
+    if (!videoRef.current || !canvasRef.current || !hasApiKey) return;
 
     setIsScanning(true);
     scanningRef.current = true;
@@ -174,15 +185,24 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
 
-        // Call Gemini with timeout
+        // Call selected OCR provider with timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const vin = await readVinWithGemini({ 
-          base64Image: base64, 
-          apiKey: googleApiKey,
-          signal: controller.signal 
-        });
+        let vin: string | null = null;
+        if (ocrProvider === 'grok' && grokApiKey) {
+          vin = await readVinWithGrok({ 
+            base64Image: base64, 
+            apiKey: grokApiKey,
+            signal: controller.signal 
+          });
+        } else if (googleApiKey) {
+          vin = await readVinWithGemini({ 
+            base64Image: base64, 
+            apiKey: googleApiKey,
+            signal: controller.signal 
+          });
+        }
 
         clearTimeout(timeoutId);
 
@@ -199,7 +219,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
         await new Promise(resolve => setTimeout(resolve, 1000));
         
       } catch (error) {
-        console.error('Gemini OCR error:', error);
+        console.error('OCR error:', error);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
