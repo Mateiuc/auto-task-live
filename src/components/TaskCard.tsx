@@ -1,0 +1,900 @@
+import { Task, Client, Vehicle, WorkSession } from '@/types';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreVertical, Edit, Wrench, Pause, Square, Trash } from 'lucide-react';
+import { formatDuration, formatCurrency, formatTime } from '@/lib/formatTime';
+import { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import { toast } from '@/hooks/use-toast';
+import { EditTaskDialog } from './EditTaskDialog';
+import { getVehicleColorScheme, VehicleColorScheme } from '@/lib/vehicleColors';
+import billBackground from '@/assets/bill-background.jpg';
+interface TaskCardProps {
+  task: Task;
+  client: Client | undefined;
+  vehicle: Vehicle | undefined;
+  settings: {
+    defaultHourlyRate: number;
+  };
+  onMarkBilled: (taskId: string) => void;
+  onMarkPaid: (taskId: string) => void;
+  onRestartTimer: (taskId: string) => void;
+  onPauseTimer?: () => void;
+  onStopTimer?: () => void;
+  onUpdateTask?: (updatedTask: Task) => void;
+  onDelete?: (taskId: string) => void;
+  vehicleColorScheme?: VehicleColorScheme;
+}
+export const TaskCard = ({
+  task,
+  client,
+  vehicle,
+  settings,
+  onMarkBilled,
+  onMarkPaid,
+  onRestartTimer,
+  onPauseTimer,
+  onStopTimer,
+  onUpdateTask,
+  onDelete,
+  vehicleColorScheme
+}: TaskCardProps) => {
+  // Get vehicle color scheme (use provided or compute from vehicle ID)
+  const colorScheme = vehicleColorScheme || getVehicleColorScheme(vehicle?.id || task.vehicleId);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentElapsed, setCurrentElapsed] = useState(0);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const isActive = ['pending', 'in-progress', 'paused'].includes(task.status);
+  const isCompleted = ['completed', 'billed', 'paid'].includes(task.status);
+
+  // Live timer for active tasks
+  useEffect(() => {
+    if (task.status === 'in-progress' && task.startTime) {
+      const interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - task.startTime!.getTime()) / 1000);
+        setCurrentElapsed(elapsed);
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setCurrentElapsed(0);
+    }
+  }, [task.status, task.startTime]);
+
+  // For active tasks: show current period time only
+  // For completed tasks: show total accumulated time
+  let displayTime: number;
+  if (isActive) {
+    // Active tasks: show current period time
+    if (task.status === 'in-progress' && task.startTime) {
+      // Live current period timer
+      displayTime = currentElapsed;
+    } else if (task.status === 'paused' && task.activeSessionId) {
+      // Show the last period's duration from the active session
+      const activeSession = task.sessions.find(s => s.id === task.activeSessionId);
+      const lastPeriod = activeSession?.periods?.[activeSession.periods.length - 1];
+      displayTime = lastPeriod?.duration || 0;
+    } else {
+      // Pending tasks
+      displayTime = 0;
+    }
+  } else {
+    // Completed tasks: show total accumulated time
+    displayTime = task.totalTime;
+  }
+
+  // Helper function to format date as dd-mm-yyyy
+  const formatDateForFilename = (date: Date | string | number | undefined): string => {
+    // Ensure date is a Date object
+    let dateObj: Date;
+    if (!date) {
+      dateObj = new Date();
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      dateObj = new Date(date);
+    }
+    
+    // Validate the date is valid
+    if (isNaN(dateObj.getTime())) {
+      dateObj = new Date();
+    }
+    
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // Helper function to sanitize strings for filenames
+  const sanitizeForFilename = (str: string | undefined): string => {
+    if (!str) return 'Unknown';
+    return str.replace(/[^a-zA-Z0-9]/g, '_');
+  };
+
+  // Helper function to safely format session date
+  const formatSessionDate = (date: Date | string | undefined): string => {
+    if (!date) return 'Date Not Available';
+    
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      return 'Date Not Available';
+    }
+    
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
+  // Generate detail PDF (plain format for records)
+  const generateDetailPDF = () => {
+    const doc = new jsPDF();
+
+    // Add header
+    doc.setFontSize(20);
+    doc.text('Work Detail', 105, 20, {
+      align: 'center'
+    });
+
+    // Two-column layout: Client (left) and Vehicle (right)
+    let yPos = 40;
+
+    // Left column: Client Information
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Client Information:', 20, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Name: ${client?.name || 'N/A'}`, 20, yPos + 8);
+    doc.text(`Phone: ${client?.phone || 'N/A'}`, 20, yPos + 16);
+
+    // Right column: Vehicle Information
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vehicle Information:', 110, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`${vehicle?.year || ''} ${vehicle?.make || ''} ${vehicle?.model || ''}`, 110, yPos + 8);
+    doc.text(`VIN: ${vehicle?.vin || 'N/A'}`, 110, yPos + 16);
+
+    yPos = 70; // Move to next section
+
+    // Work Sessions
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Work Sessions:', 20, yPos);
+    doc.setFont('helvetica', 'normal');
+    yPos += 8;
+
+    (task.sessions || []).forEach((session, sessionIndex) => {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Session ${sessionIndex + 1}`, 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      yPos += 7;
+      
+      // Description FIRST
+      if (session.description) {
+        doc.setFontSize(9);
+        const maxWidth = 170;
+        const wrappedDesc = doc.splitTextToSize(`Description: ${session.description}`, maxWidth - 5);
+        wrappedDesc.forEach((line: string) => {
+          doc.text(line, 25, yPos);
+          yPos += 6;
+        });
+      }
+      
+      // Periods with full date/time info (sorted by startTime)
+      const sortedPeriods = [...(session.periods || [])].sort((a, b) => 
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+      
+      sortedPeriods.forEach((period, periodIndex) => {
+        const startDate = new Date(period.startTime);
+        const endDate = new Date(period.endTime);
+        
+        const dateStr = startDate.toLocaleDateString('en-US');
+        const startTimeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const endTimeStr = endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const durationStr = formatDuration(period.duration);
+        
+        doc.setFontSize(9);
+        doc.text(`Period ${periodIndex + 1}: ${dateStr} ${startTimeStr} - ${endTimeStr} (${durationStr})`, 25, yPos);
+        yPos += 6;
+      });
+      
+      yPos += 3;
+    });
+
+    // Parts Section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Parts:', 20, yPos);
+    doc.setFont('helvetica', 'normal');
+    yPos += 8;
+
+    let hasParts = false;
+    (task.sessions || []).forEach((session) => {
+      if (session.parts && session.parts.length > 0) {
+        hasParts = true;
+        session.parts.forEach(part => {
+          doc.setFontSize(10);
+          doc.text(`${part.quantity}x ${part.name} - ${formatCurrency(part.price * part.quantity)}`, 25, yPos);
+          yPos += 6;
+          
+          if (part.description) {
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            const maxWidth = 170;
+            const wrappedText = doc.splitTextToSize(`  ${part.description}`, maxWidth - 30);
+            wrappedText.forEach((line: string) => {
+              doc.text(line, 30, yPos);
+              yPos += 5;
+            });
+            doc.setTextColor(0, 0, 0);
+          }
+        });
+      }
+    });
+
+    if (!hasParts) {
+      doc.setFontSize(10);
+      doc.text('No parts used', 25, yPos);
+      yPos += 6;
+    }
+
+    yPos += 5;
+
+    // Cost Breakdown (at the end)
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cost Breakdown:', 20, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    yPos += 8;
+    doc.text(`Labor (${formatDuration(task.totalTime)} @ ${formatCurrency(hourlyRate)}/hr): ${formatCurrency(laborCost)}`, 20, yPos);
+    yPos += 7;
+    doc.text(`Parts: ${formatCurrency(partsCost)}`, 20, yPos);
+    yPos += 10;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total: ${formatCurrency(totalCost)}`, 20, yPos);
+
+    // Save PDF
+    const fileName = `detail_${vehicle?.vin}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    toast({
+      title: "Detail Generated",
+      description: `PDF saved as ${fileName}`
+    });
+  };
+
+  // Generate billing PDF (branded format for invoicing)
+  const generateBillingPDF = () => {
+    try {
+      const doc = new jsPDF({
+        format: 'letter'
+      });
+
+      // Add background image
+      doc.addImage(billBackground, 'JPEG', 0, 0, 215.9, 279.4);
+
+      // Bill Information
+      doc.setFontSize(17);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(128, 0, 128); // Purple color matching the background
+      doc.text(`Bill to:`, 20, 48.5);
+      
+      // Billed on date (right side)
+      const billedDate = new Date().toLocaleDateString('en-US');
+      doc.text(`Billed on ${billedDate}`, 195.9, 58.5, { align: 'right' });
+      
+      // Client name (back to black)
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text(client?.name || 'N/A', 20, 53);
+      
+      // Vehicle info
+      const vehicleInfo = [vehicle?.year, vehicle?.make, vehicle?.model]
+        .filter(Boolean)
+        .join(' ');
+      const vinInfo = vehicle?.vin ? `(VIN: ${vehicle.vin})` : '';
+      const fullVehicleInfo = vehicleInfo ? `${vehicleInfo} ${vinInfo}` : 'Vehicle Info Not Available';
+      doc.text(fullVehicleInfo, 20, 58.5);
+
+      // Table Section
+      const tableTop = 66;
+      const col1X = 20;
+      const col2X = 130;
+      const col3X = 190.9;
+      const tableWidth = 175.9;
+
+      // Table headers
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DESCRIPTION', 25, tableTop + 6);
+      doc.text('TIME', col2X - 1, tableTop + 6);
+      doc.text('AMOUNT', 190.9, tableTop + 6, { align: 'right' });
+
+      // Red line under headers
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(255, 0, 0);
+      doc.line(20, tableTop + 8, 195.9, tableTop + 8);
+
+      // Helper function to format duration as hh:mm
+      const formatDurationHHMM = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      };
+
+      // Collect all parts from sessions
+      const parts = (task.sessions || []).reduce((acc, session) => {
+        return acc.concat(session.parts || []);
+      }, [] as typeof task.sessions[0]['parts']);
+
+      // Table rows - Labor (per session)
+      let yPos = tableTop + 16;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+
+      (task.sessions || []).forEach((session) => {
+        // Calculate total duration for this session
+        const sessionDuration = (session.periods || []).reduce((total, period) => {
+          return total + period.duration;
+        }, 0);
+        
+        // Calculate cost for this session
+        const sessionCost = (sessionDuration / 3600) * hourlyRate;
+        
+        // Get description or use default
+        const description = session.description || 'Work session';
+        
+        // Render row with text wrapping
+        const col1Width = col2X - col1X - 4;
+        const wrappedDescription = doc.splitTextToSize(description, col1Width);
+        const startYPos = yPos;
+        wrappedDescription.forEach((line: string, index: number) => {
+          doc.text(line, col1X + 2, yPos);
+          if (index < wrappedDescription.length - 1) {
+            yPos += 6;
+          }
+        });
+        doc.text(formatDurationHHMM(sessionDuration), col2X + 2, startYPos);
+        doc.text(formatCurrency(sessionCost), col3X + 2, startYPos, { align: 'right' });
+        
+        yPos += 8;
+      });
+
+      // Table rows - Parts
+      if (parts.length > 0) {
+        doc.setFontSize(11);
+        parts.forEach((part) => {
+          const partNameYPos = yPos;
+          doc.setFont('helvetica', 'normal');
+          doc.text(part.name, col1X + 2, partNameYPos);
+          
+          // Add description if exists
+          if (part.description) {
+            yPos += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 100, 100);
+            const col1Width = col2X - col1X - 6;
+            const wrappedPartDesc = doc.splitTextToSize(part.description, col1Width);
+            wrappedPartDesc.forEach((line: string, index: number) => {
+              doc.text(line, col1X + 4, yPos);
+              if (index < wrappedPartDesc.length - 1) {
+                yPos += 5;
+              }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            yPos += 2;
+          }
+          
+          // Quantity and price on the same line as part name
+          doc.text(`${part.quantity}`, col2X + 2, partNameYPos);
+          doc.text(formatCurrency(part.price * part.quantity), col3X + 2, partNameYPos, { align: 'right' });
+          
+          yPos += 8;
+        });
+      }
+
+
+      // Total Section
+      yPos = 261;
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      const totalX = col3X - 45;
+      doc.text('TOTAL:', totalX, yPos);
+      doc.text(formatCurrency(totalCost), col3X + 2, yPos, { align: 'right' });
+
+      // Add timestamp at the very bottom center
+      const formatTimestamp = (date: Date): string => {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+      };
+
+      const pageHeight = 279.4; // Letter height in mm
+      const bottomMargin = 2;
+      const timestampY = pageHeight - bottomMargin;
+      const pageCenter = 107.95; // 215.9mm / 2 = center of Letter page
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      const timestamp = formatTimestamp(new Date());
+      doc.text(`Generated: ${timestamp}`, pageCenter, timestampY, { align: 'center' });
+
+      // Save PDF
+      const clientName = sanitizeForFilename(client?.name);
+      const carBrand = sanitizeForFilename(vehicle?.make);
+      const workStartDate = formatDateForFilename(task.createdAt);
+      const fileName = `bill_${clientName}_${carBrand}_${workStartDate}.pdf`;
+      doc.save(fileName);
+      toast({
+        title: "Bill Generated",
+        description: `Invoice saved as ${fileName}`
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "Bill Generation Failed",
+        description: "There was an error creating the PDF. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Generate preview PDF (same as billing but with different filename)
+  const generatePreviewPDF = () => {
+    try {
+      // Add loading toast
+      toast({
+        title: "Generating Preview",
+        description: "Creating PDF preview..."
+      });
+      
+      // Validate required data
+      if (!task.sessions || task.sessions.length === 0) {
+        toast({
+          title: "No Work Sessions",
+          description: "This task has no work sessions to preview.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const doc = new jsPDF({
+        format: 'letter'
+      });
+
+      // Add background image
+      doc.addImage(billBackground, 'JPEG', 0, 0, 215.9, 279.4);
+
+      doc.setFontSize(17);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(128, 0, 128);
+      doc.text(`Bill to:`, 20, 48.5);
+      
+      const billedDate = new Date().toLocaleDateString('en-US');
+      doc.text(`Billed on ${billedDate}`, 195.9, 58.5, { align: 'right' });
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text(client?.name || 'N/A', 20, 53);
+      
+      const vehicleInfo = [vehicle?.year, vehicle?.make, vehicle?.model]
+        .filter(Boolean)
+        .join(' ');
+      const vinInfo = vehicle?.vin ? `(VIN: ${vehicle.vin})` : '';
+      const fullVehicleInfo = vehicleInfo ? `${vehicleInfo} ${vinInfo}` : 'Vehicle Info Not Available';
+      doc.text(fullVehicleInfo, 20, 58.5);
+
+      const tableTop = 66;
+      const col1X = 20;
+      const col2X = 130;
+      const col3X = 190.9;
+      const tableWidth = 175.9;
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DESCRIPTION', 25, tableTop + 6);
+      doc.text('TIME', col2X - 1, tableTop + 6);
+      doc.text('AMOUNT', 190.9, tableTop + 6, { align: 'right' });
+
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(255, 0, 0);
+      doc.line(20, tableTop + 8, 195.9, tableTop + 8);
+
+      const formatDurationHHMM = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      };
+
+      const parts = (task.sessions || []).reduce((acc, session) => {
+        return acc.concat(session.parts || []);
+      }, [] as typeof task.sessions[0]['parts']);
+
+      let yPos = tableTop + 16;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+
+      (task.sessions || []).forEach((session) => {
+        const sessionDuration = (session.periods || []).reduce((total, period) => {
+          return total + period.duration;
+        }, 0);
+        
+        const sessionCost = (sessionDuration / 3600) * hourlyRate;
+        const description = session.description || 'Work session';
+        
+        const col1Width = col2X - col1X - 4;
+        const wrappedDescription = doc.splitTextToSize(description, col1Width);
+        const startYPos = yPos;
+        wrappedDescription.forEach((line: string, index: number) => {
+          doc.text(line, col1X + 2, yPos);
+          if (index < wrappedDescription.length - 1) {
+            yPos += 6;
+          }
+        });
+        doc.text(formatDurationHHMM(sessionDuration), col2X + 2, startYPos);
+        doc.text(formatCurrency(sessionCost), col3X + 2, startYPos, { align: 'right' });
+        
+        yPos += 8;
+      });
+
+      if (parts.length > 0) {
+        doc.setFontSize(11);
+        parts.forEach((part) => {
+          const partNameYPos = yPos;
+          doc.setFont('helvetica', 'normal');
+          doc.text(part.name, col1X + 2, partNameYPos);
+          
+          if (part.description) {
+            yPos += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 100, 100);
+            const col1Width = col2X - col1X - 6;
+            const wrappedPartDesc = doc.splitTextToSize(part.description, col1Width);
+            wrappedPartDesc.forEach((line: string, index: number) => {
+              doc.text(line, col1X + 4, yPos);
+              if (index < wrappedPartDesc.length - 1) {
+                yPos += 5;
+              }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            yPos += 2;
+          }
+          
+          doc.text(`${part.quantity}`, col2X + 2, partNameYPos);
+          doc.text(formatCurrency(part.price * part.quantity), col3X + 2, partNameYPos, { align: 'right' });
+          
+          yPos += 8;
+        });
+      }
+
+      yPos = 261;
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      const totalX = col3X - 45;
+      doc.text('TOTAL:', totalX, yPos);
+      doc.text(formatCurrency(totalCost), col3X + 2, yPos, { align: 'right' });
+
+      const formatTimestamp = (date: Date): string => {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+      };
+
+      const pageHeight = 279.4;
+      const bottomMargin = 2;
+      const timestampY = pageHeight - bottomMargin;
+      const pageCenter = 107.95;
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      const timestamp = formatTimestamp(new Date());
+      doc.text(`Generated: ${timestamp}`, pageCenter, timestampY, { align: 'center' });
+
+      // Save PDF with preview filename
+      const clientName = sanitizeForFilename(client?.name);
+      const carBrand = sanitizeForFilename(vehicle?.make);
+      const workStartDate = formatDateForFilename(task.createdAt);
+      const fileName = `preview_${clientName}_${carBrand}_${workStartDate}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "Preview Generated",
+        description: `Preview saved as ${fileName}`
+      });
+    } catch (error) {
+      console.error('Preview PDF generation error:', error);
+      toast({
+        title: "Preview Generation Failed",
+        description: error instanceof Error ? error.message : "There was an error creating the preview. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleGenerateBill = () => {
+    generateBillingPDF();
+    onMarkBilled(task.id);
+  };
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'in-progress':
+        return 'bg-primary text-primary-foreground';
+      case 'paused':
+        return 'bg-warning text-warning-foreground';
+      case 'completed':
+        return 'bg-success text-success-foreground';
+      case 'billed':
+        return 'bg-accent text-accent-foreground';
+      case 'paid':
+        return 'bg-muted text-muted-foreground';
+      default:
+        return 'bg-secondary text-secondary-foreground';
+    }
+  };
+  const hourlyRate = client?.hourlyRate || settings.defaultHourlyRate;
+  const laborCost = task.totalTime / 3600 * hourlyRate;
+  const partsCost = (task.sessions || []).reduce((total, session) => {
+    return total + (session.parts || []).reduce((sum, part) => sum + part.price * part.quantity, 0);
+  }, 0);
+  const totalCost = laborCost + partsCost;
+  return <Card className={`overflow-hidden transition-all hover:shadow-md ${colorScheme.card} border ${colorScheme.border}`}>
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <div className="p-3 py-0">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {vehicle?.year} {vehicle?.make} {vehicle?.model}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">VIN: {vehicle?.vin}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover z-50">
+                  <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  {task.status === 'completed' && <>
+                      <DropdownMenuItem onClick={generatePreviewPDF}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Preview Bill
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleGenerateBill}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Generate Bill & Mark Billed
+                      </DropdownMenuItem>
+                    </>}
+                {task.status === 'billed' && <>
+                    <DropdownMenuItem onClick={generateBillingPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Bill
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onMarkPaid(task.id)}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Payed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive"
+                    >
+                      <Trash className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>}
+                  {task.status === 'paid' && (
+                      <DropdownMenuItem 
+                        onClick={() => setShowDeleteDialog(true)}
+                        className="text-destructive"
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    )}
+                  {(task.status === 'billed' || task.status === 'paid') && <DropdownMenuItem onClick={generateDetailPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Print detail
+                    </DropdownMenuItem>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
+        </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-2 text-sm">
+            <div className="text-center">
+              <div className="text-muted-foreground text-xs mb-1">{isActive ? 'Period' : 'Total'}</div>
+              <div className="font-semibold text-xs">{formatDuration(displayTime)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-muted-foreground text-xs mb-1">Sessions</div>
+              <div className="font-semibold text-xs">{(task.sessions || []).length}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-muted-foreground text-xs mb-1">Cost</div>
+              <div className="font-semibold text-xs text-primary">{formatCurrency(totalCost)}</div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 w-full mt-2">
+            <CollapsibleTrigger asChild>
+              {isCompleted && <Button variant="outline" size="sm" className="gap-1 h-9 px-3 flex-1">
+                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  <span className="text-xs">Details</span>
+                </Button>}
+            </CollapsibleTrigger>
+
+            {/* Active Tab Buttons */}
+            {isActive && <>
+                {task.status === 'pending' && <Button variant="default" size="sm" onClick={() => onRestartTimer(task.id)} className="gap-1 h-9 px-3">
+                    <Play className="h-3.5 w-3.5" />
+                    <span className="text-xs">Start</span>
+                  </Button>}
+
+                {task.status === 'in-progress' && <>
+                    {onPauseTimer && <Button variant="secondary" size="sm" onClick={onPauseTimer} className="gap-1 h-9 px-3">
+                        <Pause className="h-3.5 w-3.5" />
+                        <span className="text-xs">Pause</span>
+                      </Button>}
+                    {onStopTimer && <Button variant="default" size="sm" onClick={onStopTimer} className="gap-1 h-9 px-3">
+                        <Square className="h-3.5 w-3.5" />
+                        <span className="text-xs">Stop</span>
+                      </Button>}
+                  </>}
+
+                {task.status === 'paused' && <>
+                    <Button variant="default" size="sm" onClick={() => onRestartTimer(task.id)} className="gap-1 h-9 px-3">
+                      <Play className="h-3.5 w-3.5" />
+                      <span className="text-xs">Resume</span>
+                    </Button>
+                    {onStopTimer && <Button variant="secondary" size="sm" onClick={onStopTimer} className="gap-1 h-9 px-3">
+                        <Square className="h-3.5 w-3.5" />
+                        <span className="text-xs">Stop</span>
+                      </Button>}
+                  </>}
+              </>}
+
+            {/* Completed Tab Buttons */}
+            {isCompleted && <>
+                {task.status === 'completed' && task.needsFollowUp && <Button variant="default" size="sm" onClick={() => onRestartTimer(task.id)} className="gap-1 h-9 px-3 flex-1">
+                    <Play className="h-3.5 w-3.5" />
+                    <span className="text-xs">Restart</span>
+                  </Button>}
+              </>}
+        </div>
+
+        <CollapsibleContent>
+          <div className="px-4 pb-4 space-y-1 border-t pt-3 text-sm">
+            {/* Unified Sessions View */}
+            <div>
+              <h4 className="font-semibold text-xs mb-1">Work Sessions ({(task.sessions || []).length})</h4>
+              {(task.sessions || []).map((session, sessionIndex) => {
+              const sessionDuration = (session.periods || []).reduce((sum, p) => sum + p.duration, 0);
+              
+              // Build timeline events
+              const allEvents: Array<{
+                time: Date;
+                type: 'started' | 'paused' | 'resumed' | 'completed';
+              }> = [];
+              (session.periods || []).forEach((period, idx) => {
+                if (idx === 0) {
+                  allEvents.push({ time: period.startTime, type: 'started' });
+                } else {
+                  allEvents.push({ time: period.startTime, type: 'resumed' });
+                }
+                if (idx < (session.periods || []).length - 1) {
+                  allEvents.push({ time: period.endTime, type: 'paused' });
+                } else {
+                  allEvents.push({ time: period.endTime, type: 'completed' });
+                }
+              });
+              
+              return <div key={session.id} className={`${colorScheme.session} border rounded-lg p-2 mb-1`}>
+                    <div className="text-[11px] font-medium mb-1">
+                      Session {sessionIndex + 1} ({formatDuration(sessionDuration)})
+                    </div>
+                    
+                    {/* Timeline events */}
+                    <div className="ml-2 mb-1 space-y-0.5">
+                      {allEvents.map((event, idx) => (
+                        <div key={idx} className="text-[10px]">
+                          <span className={
+                            event.type === 'started' ? 'text-green-600 dark:text-green-400' : 
+                            event.type === 'resumed' ? 'text-blue-600 dark:text-blue-400' : 
+                            event.type === 'paused' ? 'text-orange-600 dark:text-orange-400' : 
+                            'text-red-600 dark:text-red-400'
+                          }>●</span>
+                          {' '}
+                          <span>
+                            {event.type === 'started' ? 'Started' : 
+                             event.type === 'resumed' ? 'Resumed' : 
+                             event.type === 'paused' ? 'Paused' : 
+                             'Stopped'}
+                          </span>
+                          {': '}
+                          {formatTime(event.time)}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {session.description && <div className="text-[10px] text-muted-foreground mb-1">{session.description}</div>}
+                    
+                    {session.parts && session.parts.length > 0 && <div className="space-y-0.5">
+                        <div className="font-medium text-[10px]">Parts Used:</div>
+                        {session.parts.map((part, i) => <div key={i} className="flex justify-between text-[10px] text-muted-foreground ml-2">
+                            <span>{part.quantity}x {part.name}</span>
+                            <span>{formatCurrency(part.price * part.quantity)}</span>
+                          </div>)}
+                       </div>}
+                  </div>;
+            })}
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+      
+      <EditTaskDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} task={task} onSave={updatedTask => onUpdateTask?.(updatedTask)} />
+      
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="w-[90vw] max-w-sm p-4 rounded-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">Delete Task</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDelete?.(task.id);
+                setShowDeleteDialog(false);
+              }}
+              className="w-full sm:w-auto m-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>;
+};
