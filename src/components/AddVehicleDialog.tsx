@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,13 @@ export const AddVehicleDialog = ({
   const {
     toast
   } = useToast();
+
+  // Auto-open VIN scanner when dialog opens
+  useEffect(() => {
+    if (open) {
+      setShowVinScanner(true);
+    }
+  }, [open]);
   const handleContactSelect = (contact: PhoneContact) => {
     // Store contact data and trigger client creation
     setPendingContactData(contact);
@@ -187,6 +194,7 @@ export const AddVehicleDialog = ({
                       onVinDetected={handleVinDetected} 
                       onClose={() => setShowVinScanner(false)}
                       googleApiKey={settings.googleApiKey}
+                      autoStartAI={true}
                     />
                   </div>
                 </div> : <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">

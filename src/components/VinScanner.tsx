@@ -9,12 +9,15 @@ interface VinScannerProps {
   onVinDetected: (vin: string) => void;
   onClose: () => void;
   googleApiKey?: string;
+  autoStartAI?: boolean;
 }
 
-const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey }) => {
+const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey, autoStartAI }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scanningRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isContinuousAIScanning, setIsContinuousAIScanning] = useState(false);
   const [scanMode, setScanMode] = useState<'basic' | 'ai'>('basic');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isFrameReady, setIsFrameReady] = useState(false);
@@ -26,6 +29,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
   useEffect(() => {
     startCamera();
     return () => {
+      scanningRef.current = false;
       stopCamera();
     };
   }, []);
@@ -72,6 +76,13 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
 
     return () => video.removeEventListener('loadedmetadata', handleMetadataLoaded);
   }, [stream]);
+
+  // Auto-start continuous AI scan if requested
+  useEffect(() => {
+    if (autoStartAI && googleApiKey && isFrameReady && stream && !isContinuousAIScanning) {
+      startContinuousAIScan();
+    }
+  }, [autoStartAI, googleApiKey, isFrameReady, stream]);
 
   const startCamera = async () => {
     try {
@@ -144,66 +155,88 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     }
   };
 
-  const captureAndScanWithAI = async () => {
-    if (!videoRef.current || !canvasRef.current || isScanning || !googleApiKey) return;
+  const startContinuousAIScan = async () => {
+    if (!videoRef.current || !canvasRef.current || !googleApiKey) return;
 
     setScanMode('ai');
     setIsScanning(true);
+    setIsContinuousAIScanning(true);
+    scanningRef.current = true;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
     if (!context) {
       setIsScanning(false);
+      setIsContinuousAIScanning(false);
       return;
     }
 
-    // Calculate frame position and dimensions
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-    const frameWidth = (videoWidth * frameDimensions.widthPercent) / 100;
-    const frameHeight = frameDimensions.heightPx;
-    const frameX = (videoWidth - frameWidth) / 2;
-    const frameY = (videoHeight - frameHeight) / 2;
+    // Continuous scan loop
+    while (scanningRef.current) {
+      try {
+        // Calculate frame position and dimensions
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        const frameWidth = (videoWidth * frameDimensions.widthPercent) / 100;
+        const frameHeight = frameDimensions.heightPx;
+        const frameX = (videoWidth - frameWidth) / 2;
+        const frameY = (videoHeight - frameHeight) / 2;
 
-    // Set canvas to frame dimensions only (crop to scan area)
-    canvas.width = frameWidth;
-    canvas.height = frameHeight;
-    
-    // Draw only the cropped frame region
-    context.drawImage(
-      video,
-      frameX, frameY, frameWidth, frameHeight,
-      0, 0, frameWidth, frameHeight
-    );
+        // Capture current frame
+        canvas.width = frameWidth;
+        canvas.height = frameHeight;
+        context.drawImage(
+          video,
+          frameX, frameY, frameWidth, frameHeight,
+          0, 0, frameWidth, frameHeight
+        );
 
-    try {
-      // Convert canvas to JPEG base64 (without data URL prefix)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+        // Convert to base64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
 
-      // Call Gemini Vision API
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+        // Call Gemini with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout per frame
 
-      const vin = await readVinWithGemini({ 
-        base64Image: base64, 
-        apiKey: googleApiKey,
-        signal: controller.signal 
-      });
+        const vin = await readVinWithGemini({ 
+          base64Image: base64, 
+          apiKey: googleApiKey,
+          signal: controller.signal 
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (vin && validateVin(vin)) {
-        onVinDetected(vin);
-        stopCamera();
-        return;
+        // If valid VIN found, stop scanning
+        if (vin && validateVin(vin)) {
+          onVinDetected(vin);
+          stopCamera();
+          scanningRef.current = false;
+          setIsContinuousAIScanning(false);
+          setIsScanning(false);
+          return;
+        }
+
+        // Wait 1 second before next capture (rate limit control)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        console.error('Gemini OCR error:', error);
+        // Continue scanning even if one frame fails
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-    } catch (error) {
-      console.error('Gemini OCR error:', error);
-    } finally {
-      setIsScanning(false);
     }
+    
+    setIsContinuousAIScanning(false);
+    setIsScanning(false);
+  };
+
+  const stopContinuousAIScan = () => {
+    scanningRef.current = false;
+    setIsContinuousAIScanning(false);
+    setIsScanning(false);
   };
 
   return (
@@ -256,13 +289,12 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
       <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4">
         {googleApiKey && (
           <Button
-            onClick={captureAndScanWithAI}
-            disabled={isScanning}
+            onClick={isContinuousAIScanning ? stopContinuousAIScan : startContinuousAIScan}
             size="lg"
             className="rounded-full h-16 px-6 flex-1 max-w-[200px] bg-gradient-to-r from-primary to-primary/80"
           >
             <Sparkles className="h-5 w-5 mr-2" />
-            AI Scan
+            {isContinuousAIScanning ? 'Stop' : 'AI Scan'}
           </Button>
         )}
         <Button
@@ -280,7 +312,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
       {isScanning && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="text-white text-lg font-medium">
-            {scanMode === 'ai' ? 'Reading with Google AI...' : 'Scanning VIN...'}
+            {scanMode === 'ai' ? 'AI Scanning... (align VIN in frame)' : 'Scanning VIN...'}
           </div>
         </div>
       )}
