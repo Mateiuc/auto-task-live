@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Vehicle, Client } from '@/types';
+import { Vehicle, Client, Settings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { decodeVin } from '@/lib/vinDecoder';
 import VinScanner from './VinScanner';
@@ -15,6 +15,7 @@ interface EditVehicleDialogProps {
   vehicle: Vehicle;
   client: Client | undefined;
   vehicles: Vehicle[];
+  settings: Settings;
   onSave: (vehicleId: string, updates: Partial<Vehicle>) => void;
 }
 
@@ -24,6 +25,7 @@ export const EditVehicleDialog = ({
   vehicle,
   client,
   vehicles,
+  settings,
   onSave,
 }: EditVehicleDialogProps) => {
   const { toast } = useToast();
@@ -206,6 +208,7 @@ export const EditVehicleDialog = ({
           <VinScanner
             onVinDetected={handleScan}
             onClose={() => setShowScanner(false)}
+            googleApiKey={settings.googleApiKey}
           />
         </div>
       )}

@@ -1,18 +1,21 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Camera } from 'lucide-react';
+import { X, Camera, Sparkles } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 import { validateVin } from '@/lib/vinDecoder';
+import { readVinWithGemini } from '@/lib/geminiVinOcr';
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
   onClose: () => void;
+  googleApiKey?: string;
 }
 
-const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose }) => {
+const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [scanMode, setScanMode] = useState<'basic' | 'ai'>('basic');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isFrameReady, setIsFrameReady] = useState(false);
   const [frameDimensions, setFrameDimensions] = useState({ 
@@ -93,6 +96,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose }) => {
   const captureAndScan = async () => {
     if (!videoRef.current || !canvasRef.current || isScanning) return;
 
+    setScanMode('basic');
     setIsScanning(true);
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -135,6 +139,68 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose }) => {
       }
     } catch (error) {
       console.error('OCR error:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const captureAndScanWithAI = async () => {
+    if (!videoRef.current || !canvasRef.current || isScanning || !googleApiKey) return;
+
+    setScanMode('ai');
+    setIsScanning(true);
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      setIsScanning(false);
+      return;
+    }
+
+    // Calculate frame position and dimensions
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const frameWidth = (videoWidth * frameDimensions.widthPercent) / 100;
+    const frameHeight = frameDimensions.heightPx;
+    const frameX = (videoWidth - frameWidth) / 2;
+    const frameY = (videoHeight - frameHeight) / 2;
+
+    // Set canvas to frame dimensions only (crop to scan area)
+    canvas.width = frameWidth;
+    canvas.height = frameHeight;
+    
+    // Draw only the cropped frame region
+    context.drawImage(
+      video,
+      frameX, frameY, frameWidth, frameHeight,
+      0, 0, frameWidth, frameHeight
+    );
+
+    try {
+      // Convert canvas to JPEG base64 (without data URL prefix)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+
+      // Call Gemini Vision API
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+
+      const vin = await readVinWithGemini({ 
+        base64Image: base64, 
+        apiKey: googleApiKey,
+        signal: controller.signal 
+      });
+
+      clearTimeout(timeoutId);
+
+      if (vin && validateVin(vin)) {
+        onVinDetected(vin);
+        stopCamera();
+        return;
+      }
+    } catch (error) {
+      console.error('Gemini OCR error:', error);
     } finally {
       setIsScanning(false);
     }
@@ -187,20 +253,35 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose }) => {
         </>
       )}
 
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4">
+        {googleApiKey && (
+          <Button
+            onClick={captureAndScanWithAI}
+            disabled={isScanning}
+            size="lg"
+            className="rounded-full h-16 px-6 flex-1 max-w-[200px] bg-gradient-to-r from-primary to-primary/80"
+          >
+            <Sparkles className="h-5 w-5 mr-2" />
+            AI Scan
+          </Button>
+        )}
         <Button
           onClick={captureAndScan}
           disabled={isScanning}
           size="lg"
-          className="rounded-full h-16 w-16"
+          variant="outline"
+          className="rounded-full h-16 px-6 flex-1 max-w-[200px]"
         >
-          <Camera className="h-6 w-6" />
+          <Camera className="h-5 w-5 mr-2" />
+          Basic Scan
         </Button>
       </div>
 
       {isScanning && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <div className="text-white text-lg">Scanning VIN...</div>
+          <div className="text-white text-lg font-medium">
+            {scanMode === 'ai' ? 'Reading with Google AI...' : 'Scanning VIN...'}
+          </div>
         </div>
       )}
     </div>

@@ -65,5 +65,6 @@ export interface BackupSettings {
 
 export interface Settings {
   defaultHourlyRate: number;
+  googleApiKey?: string;
   backup?: BackupSettings;
 }

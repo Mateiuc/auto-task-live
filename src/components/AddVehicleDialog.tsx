@@ -183,7 +183,11 @@ export const AddVehicleDialog = ({
               
               {showVinScanner ? <div className="relative border border-border rounded-md overflow-hidden bg-black/90 mb-2">
                   <div className="aspect-[4/3] w-full">
-                    <VinScanner onVinDetected={handleVinDetected} onClose={() => setShowVinScanner(false)} />
+                    <VinScanner 
+                      onVinDetected={handleVinDetected} 
+                      onClose={() => setShowVinScanner(false)}
+                      googleApiKey={settings.googleApiKey}
+                    />
                   </div>
                 </div> : <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">
                   <Scan className="h-4 w-4 mr-2" />

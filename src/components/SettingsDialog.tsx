@@ -71,9 +71,16 @@ export const SettingsDialog = ({
     }
   }, [open]);
 
+  const [googleApiKey, setGoogleApiKey] = useState(settings.googleApiKey || '');
+
+  useEffect(() => {
+    setGoogleApiKey(settings.googleApiKey || '');
+  }, [settings.googleApiKey]);
+
   const handleSaveSettings = () => {
     onSave({
       defaultHourlyRate: parseFloat(hourlyRate) || 75,
+      googleApiKey: googleApiKey.trim() || undefined,
     });
     setCurrentView('menu');
   };
@@ -276,6 +283,28 @@ export const SettingsDialog = ({
                   This rate will be used unless a custom rate is set for a specific client
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label>Google AI API Key (for VIN OCR)</Label>
+                <Input
+                  type="password"
+                  value={googleApiKey}
+                  onChange={(e) => setGoogleApiKey(e.target.value)}
+                  placeholder="Enter API key from aistudio.google.com/apikey"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Enables AI-powered VIN scanning. Get your key from{' '}
+                  <a 
+                    href="https://aistudio.google.com/apikey" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="underline text-primary"
+                  >
+                    Google AI Studio
+                  </a>
+                  . Restrict by HTTP referrer for security.
+                </p>
+              </div>
             </div>
           )}
 
@@ -400,6 +429,7 @@ export const SettingsDialog = ({
         clients={clients}
         vehicles={vehicles}
         tasks={tasks}
+        settings={settings}
         onUpdateClient={onUpdateClient}
         onDeleteClient={onDeleteClient}
         onUpdateVehicle={onUpdateVehicle}

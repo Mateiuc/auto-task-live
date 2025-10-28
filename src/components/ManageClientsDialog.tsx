@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Client, Vehicle, Task } from '@/types';
+import { Client, Vehicle, Task, Settings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Mail, Phone, DollarSign, Edit, Trash2, Save, X, Car, Printer, Play } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -19,6 +19,7 @@ interface ManageClientsDialogProps {
   clients: Client[];
   vehicles: Vehicle[];
   tasks: Task[];
+  settings: Settings;
   onUpdateClient: (id: string, updates: Partial<Client>) => void;
   onDeleteClient: (id: string) => void;
   onUpdateVehicle: (id: string, updates: Partial<Vehicle>) => void;
@@ -32,6 +33,7 @@ export const ManageClientsDialog = ({
   clients,
   vehicles,
   tasks,
+  settings,
   onUpdateClient,
   onDeleteClient,
   onUpdateVehicle,
@@ -632,6 +634,7 @@ export const ManageClientsDialog = ({
           vehicle={selectedVehicle}
           client={clients.find(c => c.id === selectedVehicle.clientId)}
           vehicles={vehicles}
+          settings={settings}
           onSave={handleSaveVehicle}
         />
       )}
