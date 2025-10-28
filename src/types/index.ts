@@ -67,6 +67,7 @@ export interface Settings {
   defaultHourlyRate: number;
   googleApiKey?: string;
   grokApiKey?: string;
-  ocrProvider?: 'gemini' | 'grok';
+  ocrSpaceApiKey?: string;
+  ocrProvider?: 'gemini' | 'grok' | 'ocrspace';
   backup?: BackupSettings;
 }

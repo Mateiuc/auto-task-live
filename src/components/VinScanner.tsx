@@ -4,20 +4,23 @@ import { X } from 'lucide-react';
 import { validateVin } from '@/lib/vinDecoder';
 import { readVinWithGemini } from '@/lib/geminiVinOcr';
 import { readVinWithGrok } from '@/lib/grokVinOcr';
+import { readVinWithOcrSpace } from '@/lib/ocrSpaceVinOcr';
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
   onClose: () => void;
   googleApiKey?: string;
   grokApiKey?: string;
-  ocrProvider?: 'gemini' | 'grok';
+  ocrSpaceApiKey?: string;
+  ocrProvider?: 'gemini' | 'grok' | 'ocrspace';
 }
 
 const VinScanner: React.FC<VinScannerProps> = ({ 
   onVinDetected, 
   onClose, 
   googleApiKey, 
-  grokApiKey, 
+  grokApiKey,
+  ocrSpaceApiKey, 
   ocrProvider = 'gemini' 
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -32,6 +35,21 @@ const VinScanner: React.FC<VinScannerProps> = ({
     widthPercent: 80, 
     heightPx: 128 
   });
+  const [scanColor, setScanColor] = useState(0);
+
+  // Color palette for scanning animation
+  const scanningColors = [
+    'border-blue-500',
+    'border-purple-500',
+    'border-pink-500',
+    'border-rose-500',
+    'border-orange-500',
+    'border-yellow-500',
+    'border-green-500',
+    'border-emerald-500',
+    'border-teal-500',
+    'border-cyan-500'
+  ];
 
   useEffect(() => {
     startCamera();
@@ -84,13 +102,26 @@ const VinScanner: React.FC<VinScannerProps> = ({
     return () => video.removeEventListener('loadedmetadata', handleMetadataLoaded);
   }, [stream]);
 
+  // Color cycling effect during scanning
+  useEffect(() => {
+    if (!isScanning) return;
+    
+    const colorInterval = setInterval(() => {
+      setScanColor(prev => (prev + 1) % scanningColors.length);
+    }, 600);
+    
+    return () => clearInterval(colorInterval);
+  }, [isScanning]);
+
   // Auto-start continuous OCR scan when frame is ready
   useEffect(() => {
-    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || (ocrProvider === 'gemini' && googleApiKey);
+    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || 
+                     (ocrProvider === 'gemini' && googleApiKey) ||
+                     (ocrProvider === 'ocrspace' && ocrSpaceApiKey);
     if (hasApiKey && isFrameReady && stream && !scanningRef.current) {
       startContinuousOcrScan();
     }
-  }, [googleApiKey, grokApiKey, ocrProvider, isFrameReady, stream]);
+  }, [googleApiKey, grokApiKey, ocrSpaceApiKey, ocrProvider, isFrameReady, stream]);
 
   const startCamera = async () => {
     try {
@@ -113,7 +144,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   const startContinuousOcrScan = async () => {
-    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || (ocrProvider === 'gemini' && googleApiKey);
+    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || 
+                     (ocrProvider === 'gemini' && googleApiKey) ||
+                     (ocrProvider === 'ocrspace' && ocrSpaceApiKey);
     if (!videoRef.current || !canvasRef.current || !hasApiKey) return;
 
     setIsScanning(true);
@@ -196,6 +229,12 @@ const VinScanner: React.FC<VinScannerProps> = ({
             apiKey: grokApiKey,
             signal: controller.signal 
           });
+        } else if (ocrProvider === 'ocrspace' && ocrSpaceApiKey) {
+          vin = await readVinWithOcrSpace({ 
+            base64Image: base64, 
+            apiKey: ocrSpaceApiKey,
+            signal: controller.signal 
+          });
         } else if (googleApiKey) {
           vin = await readVinWithGemini({ 
             base64Image: base64, 
@@ -265,7 +304,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div 
               ref={guideRef}
-              className="border-2 rounded-lg transition-colors border-primary/60"
+              className={`border-2 rounded-lg transition-colors duration-300 ${
+                isScanning ? scanningColors[scanColor] : 'border-primary/60'
+              }`}
               style={{
                 width: `${frameDimensions.widthPercent}%`,
                 height: `${frameDimensions.heightPx}px`

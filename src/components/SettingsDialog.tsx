@@ -74,19 +74,22 @@ export const SettingsDialog = ({
 
   const [googleApiKey, setGoogleApiKey] = useState(settings.googleApiKey || '');
   const [grokApiKey, setGrokApiKey] = useState(settings.grokApiKey || '');
-  const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok'>(settings.ocrProvider || 'gemini');
+  const [ocrSpaceApiKey, setOcrSpaceApiKey] = useState(settings.ocrSpaceApiKey || '');
+  const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok' | 'ocrspace'>(settings.ocrProvider || 'gemini');
 
   useEffect(() => {
     setGoogleApiKey(settings.googleApiKey || '');
     setGrokApiKey(settings.grokApiKey || '');
+    setOcrSpaceApiKey(settings.ocrSpaceApiKey || '');
     setOcrProvider(settings.ocrProvider || 'gemini');
-  }, [settings.googleApiKey, settings.grokApiKey, settings.ocrProvider]);
+  }, [settings.googleApiKey, settings.grokApiKey, settings.ocrSpaceApiKey, settings.ocrProvider]);
 
   const handleSaveSettings = () => {
     onSave({
       defaultHourlyRate: parseFloat(hourlyRate) || 75,
       googleApiKey: googleApiKey.trim() || undefined,
       grokApiKey: grokApiKey.trim() || undefined,
+      ocrSpaceApiKey: ocrSpaceApiKey.trim() || undefined,
       ocrProvider,
     });
     setCurrentView('menu');
@@ -293,7 +296,7 @@ export const SettingsDialog = ({
 
               <div className="space-y-2">
                 <Label>OCR Provider (for VIN Scanning)</Label>
-                <RadioGroup value={ocrProvider} onValueChange={(value) => setOcrProvider(value as 'gemini' | 'grok')}>
+                <RadioGroup value={ocrProvider} onValueChange={(value) => setOcrProvider(value as 'gemini' | 'grok' | 'ocrspace')}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="gemini" id="gemini" />
                     <Label htmlFor="gemini" className="font-normal cursor-pointer">Google Gemini</Label>
@@ -301,6 +304,10 @@ export const SettingsDialog = ({
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="grok" id="grok" />
                     <Label htmlFor="grok" className="font-normal cursor-pointer">Grok AI</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ocrspace" id="ocrspace" />
+                    <Label htmlFor="ocrspace" className="font-normal cursor-pointer">OCR Space</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -349,6 +356,30 @@ export const SettingsDialog = ({
                       xAI Console
                     </a>
                     . Enables Grok-powered VIN scanning.
+                  </p>
+                </div>
+              )}
+
+              {ocrProvider === 'ocrspace' && (
+                <div className="space-y-2">
+                  <Label>OCR Space API Key</Label>
+                  <Input
+                    type="password"
+                    value={ocrSpaceApiKey}
+                    onChange={(e) => setOcrSpaceApiKey(e.target.value)}
+                    placeholder="Enter API key from ocr.space"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Get your free key from{' '}
+                    <a 
+                      href="https://ocr.space/ocrapi" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline text-primary"
+                    >
+                      OCR Space API
+                    </a>
+                    . 25,000 requests/month on free tier.
                   </p>
                 </div>
               )}
