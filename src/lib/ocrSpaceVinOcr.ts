@@ -59,10 +59,15 @@ export const readVinWithOcrSpace = async ({
     // Extract text from parsed results
     const parsedText = data.ParsedResults?.[0]?.ParsedText || '';
     
+    // Fix common OCR mistakes (I->1, O->0) in potential VIN text
+    const cleanedText = parsedText
+      .replace(/[IO]/g, (match) => match === 'I' ? '1' : '0')
+      .replace(/[io]/g, (match) => match === 'i' ? '1' : '0');
+    
     // Extract potential VIN using regex
     // Look for 17 consecutive alphanumeric characters (no I, O, Q)
     const vinPattern = /[A-HJ-NPR-Z0-9]{17}/g;
-    const matches = parsedText.match(vinPattern);
+    const matches = cleanedText.match(vinPattern);
     
     if (matches) {
       for (const match of matches) {
