@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Camera, Sparkles } from 'lucide-react';
-import Tesseract from 'tesseract.js';
+import { X } from 'lucide-react';
 import { validateVin } from '@/lib/vinDecoder';
 import { readVinWithGemini } from '@/lib/geminiVinOcr';
 
@@ -9,16 +8,13 @@ interface VinScannerProps {
   onVinDetected: (vin: string) => void;
   onClose: () => void;
   googleApiKey?: string;
-  autoStartAI?: boolean;
 }
 
-const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey, autoStartAI }) => {
+const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scanningRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [isContinuousAIScanning, setIsContinuousAIScanning] = useState(false);
-  const [scanMode, setScanMode] = useState<'basic' | 'ai'>('basic');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isFrameReady, setIsFrameReady] = useState(false);
   const [frameDimensions, setFrameDimensions] = useState({ 
@@ -77,12 +73,12 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     return () => video.removeEventListener('loadedmetadata', handleMetadataLoaded);
   }, [stream]);
 
-  // Auto-start continuous AI scan if requested
+  // Auto-start continuous Gemini scan when frame is ready
   useEffect(() => {
-    if (autoStartAI && googleApiKey && isFrameReady && stream && !isContinuousAIScanning) {
-      startContinuousAIScan();
+    if (googleApiKey && isFrameReady && stream && !scanningRef.current) {
+      startContinuousGeminiScan();
     }
-  }, [autoStartAI, googleApiKey, isFrameReady, stream]);
+  }, [googleApiKey, isFrameReady, stream]);
 
   const startCamera = async () => {
     try {
@@ -104,63 +100,10 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     }
   };
 
-  const captureAndScan = async () => {
-    if (!videoRef.current || !canvasRef.current || isScanning) return;
-
-    setScanMode('basic');
-    setIsScanning(true);
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    if (!context) return;
-
-    // Calculate frame position and dimensions
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-    const frameWidth = (videoWidth * frameDimensions.widthPercent) / 100;
-    const frameHeight = frameDimensions.heightPx;
-    const frameX = (videoWidth - frameWidth) / 2;
-    const frameY = (videoHeight - frameHeight) / 2;
-
-    // Set canvas to frame dimensions only (crop to scan area)
-    canvas.width = frameWidth;
-    canvas.height = frameHeight;
-    
-    // Draw only the cropped frame region
-    context.drawImage(
-      video,
-      frameX, frameY, frameWidth, frameHeight, // Source coordinates
-      0, 0, frameWidth, frameHeight            // Destination coordinates
-    );
-
-    try {
-      const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-
-      const vinMatch = text.match(/[A-HJ-NPR-Z0-9]{17}/g);
-      
-      if (vinMatch) {
-        for (const potentialVin of vinMatch) {
-          if (validateVin(potentialVin)) {
-            onVinDetected(potentialVin);
-            stopCamera();
-            return;
-          }
-        }
-      }
-    } catch (error) {
-      console.error('OCR error:', error);
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const startContinuousAIScan = async () => {
+  const startContinuousGeminiScan = async () => {
     if (!videoRef.current || !canvasRef.current || !googleApiKey) return;
 
-    setScanMode('ai');
     setIsScanning(true);
-    setIsContinuousAIScanning(true);
     scanningRef.current = true;
 
     const video = videoRef.current;
@@ -169,7 +112,6 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
 
     if (!context) {
       setIsScanning(false);
-      setIsContinuousAIScanning(false);
       return;
     }
 
@@ -184,7 +126,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
         const frameX = (videoWidth - frameWidth) / 2;
         const frameY = (videoHeight - frameHeight) / 2;
 
-        // Capture current frame
+        // Capture current frame (cropped to rectangle area)
         canvas.width = frameWidth;
         canvas.height = frameHeight;
         context.drawImage(
@@ -199,7 +141,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
 
         // Call Gemini with timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout per frame
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const vin = await readVinWithGemini({ 
           base64Image: base64, 
@@ -214,28 +156,19 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
           onVinDetected(vin);
           stopCamera();
           scanningRef.current = false;
-          setIsContinuousAIScanning(false);
           setIsScanning(false);
           return;
         }
 
-        // Wait 1 second before next capture (rate limit control)
+        // Wait 1 second before next capture
         await new Promise(resolve => setTimeout(resolve, 1000));
         
       } catch (error) {
         console.error('Gemini OCR error:', error);
-        // Continue scanning even if one frame fails
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    setIsContinuousAIScanning(false);
-    setIsScanning(false);
-  };
-
-  const stopContinuousAIScan = () => {
-    scanningRef.current = false;
-    setIsContinuousAIScanning(false);
     setIsScanning(false);
   };
 
@@ -286,36 +219,6 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
         </>
       )}
 
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4">
-        {googleApiKey && (
-          <Button
-            onClick={isContinuousAIScanning ? stopContinuousAIScan : startContinuousAIScan}
-            size="lg"
-            className="rounded-full h-16 px-6 flex-1 max-w-[200px] bg-gradient-to-r from-primary to-primary/80"
-          >
-            <Sparkles className="h-5 w-5 mr-2" />
-            {isContinuousAIScanning ? 'Stop' : 'AI Scan'}
-          </Button>
-        )}
-        <Button
-          onClick={captureAndScan}
-          disabled={isScanning}
-          size="default"
-          variant="outline"
-          className="rounded-full h-12 px-4 flex-1 max-w-[160px]"
-        >
-          <Camera className="h-4 w-4 mr-2" />
-          Offline Scan
-        </Button>
-      </div>
-
-      {isScanning && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <div className="text-white text-lg font-medium">
-            {scanMode === 'ai' ? 'AI Scanning... (align VIN in frame)' : 'Scanning VIN...'}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
