@@ -13,6 +13,8 @@ interface VinScannerProps {
 const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleApiKey }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
   const scanningRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -118,22 +120,55 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
     // Continuous scan loop
     while (scanningRef.current) {
       try {
-        // Calculate frame position and dimensions
-        const videoWidth = video.videoWidth;
-        const videoHeight = video.videoHeight;
-        const frameWidth = (videoWidth * frameDimensions.widthPercent) / 100;
-        const frameHeight = frameDimensions.heightPx;
-        const frameX = (videoWidth - frameWidth) / 2;
-        const frameY = (videoHeight - frameHeight) / 2;
+        if (!containerRef.current || !guideRef.current) continue;
 
-        // Capture current frame (cropped to rectangle area)
-        canvas.width = frameWidth;
-        canvas.height = frameHeight;
-        context.drawImage(
-          video,
-          frameX, frameY, frameWidth, frameHeight,
-          0, 0, frameWidth, frameHeight
-        );
+        // Get DOM rectangles
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const guideRect = guideRef.current.getBoundingClientRect();
+        
+        // Container dimensions
+        const cw = containerRect.width;
+        const ch = containerRect.height;
+        
+        // Video source dimensions
+        const vsw = video.videoWidth;
+        const vsh = video.videoHeight;
+        
+        // Calculate object-cover scale and offsets
+        const scale = Math.max(cw / vsw, ch / vsh);
+        const dw = vsw * scale; // displayed width
+        const dh = vsh * scale; // displayed height
+        const dx = Math.max(0, (dw - cw) / 2); // horizontal overflow
+        const dy = Math.max(0, (dh - ch) / 2); // vertical overflow
+        
+        // Guide rectangle position relative to container
+        const ox = guideRect.left - containerRect.left;
+        const oy = guideRect.top - containerRect.top;
+        const ow = guideRect.width;
+        const oh = guideRect.height;
+        
+        // Map back to video source coordinates
+        let sx = (ox + dx) / scale;
+        let sy = (oy + dy) / scale;
+        let sw = ow / scale;
+        let sh = oh / scale;
+        
+        // Clamp to valid bounds
+        sx = Math.max(0, Math.min(sx, vsw));
+        sy = Math.max(0, Math.min(sy, vsh));
+        sw = Math.min(sw, vsw - sx);
+        sh = Math.min(sh, vsh - sy);
+        
+        // Round to integers
+        sx = Math.round(sx);
+        sy = Math.round(sy);
+        sw = Math.round(sw);
+        sh = Math.round(sh);
+
+        // Capture current frame (cropped to exact guide rectangle)
+        canvas.width = sw;
+        canvas.height = sh;
+        context.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
 
         // Convert to base64
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -173,7 +208,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       <video
         ref={videoRef}
         autoPlay
@@ -209,6 +244,7 @@ const VinScanner: React.FC<VinScannerProps> = ({ onVinDetected, onClose, googleA
           {/* Visual guide frame */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div 
+              ref={guideRef}
               className="border-2 rounded-lg transition-colors border-primary/60"
               style={{
                 width: `${frameDimensions.widthPercent}%`,
