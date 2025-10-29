@@ -91,6 +91,7 @@ export const SettingsDialog = ({
       grokApiKey: grokApiKey.trim() || undefined,
       ocrSpaceApiKey: ocrSpaceApiKey.trim() || undefined,
       ocrProvider,
+      backup: settings.backup,
     });
     setCurrentView('menu');
   };

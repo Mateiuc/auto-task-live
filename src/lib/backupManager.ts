@@ -66,7 +66,7 @@ export class BackupManager {
       await capacitorStorage.setSettings({
         ...settings,
         backup: {
-          ...settings.backup!,
+          ...(settings.backup || {}),
           lastBackupDate: new Date().toISOString()
         }
       });
@@ -240,7 +240,7 @@ export class BackupManager {
       await capacitorStorage.setSettings({
         ...settings,
         backup: {
-          ...settings.backup,
+          ...(settings.backup || {}),
           lastBackupDate: new Date().toISOString(),
           lastBackupStatus: 'success'
         }
@@ -256,7 +256,7 @@ export class BackupManager {
         await capacitorStorage.setSettings({
           ...settings,
           backup: {
-            ...settings.backup,
+            ...(settings.backup || {}),
             lastBackupStatus: 'failed'
           }
         });
