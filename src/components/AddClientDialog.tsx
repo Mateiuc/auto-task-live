@@ -47,13 +47,13 @@ export const AddClientDialog = ({ open, onOpenChange, onSave }: AddClientDialogP
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
-        <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm">
+        <header className="border-b bg-purple-500/10 backdrop-blur-sm shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-primary">Add New Client</DialogTitle>
           </div>
         </header>
 
-        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1 bg-purple-500/5">
+        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1">
           <div className="space-y-2">
             <Label>Name *</Label>
             <Input 

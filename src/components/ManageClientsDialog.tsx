@@ -399,7 +399,7 @@ export const ManageClientsDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
-          <header className="border-b bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-sm">
+          <header className="border-b bg-purple-500/10 backdrop-blur-sm">
             <div className="px-4 py-3 flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -424,7 +424,7 @@ export const ManageClientsDialog = ({
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3 bg-purple-500/5">
+          <div className="flex-1 overflow-y-auto px-4 py-3">
             {filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-sm">{searchQuery ? 'No clients found' : 'No clients yet'}</p>

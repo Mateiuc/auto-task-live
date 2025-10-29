@@ -204,7 +204,14 @@ export const SettingsDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
-        <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm">
+        <header className={cn(
+          "border-b backdrop-blur-sm shadow-sm transition-colors",
+          currentView === 'menu' && "bg-card/80",
+          currentView === 'settings' && "bg-primary/10",
+          currentView === 'billed' && "bg-blue-500/10",
+          currentView === 'paid' && "bg-green-500/10",
+          currentView === 'backup' && "bg-orange-500/10"
+        )}>
           <div className="px-4 py-3 flex items-center gap-2">
             {currentView !== 'menu' && (
               <Button
@@ -220,13 +227,7 @@ export const SettingsDialog = ({
           </div>
         </header>
 
-        <div className={cn(
-          "flex-1 overflow-y-auto px-4 py-3 transition-colors",
-          currentView === 'settings' && "bg-primary/5",
-          currentView === 'billed' && "bg-blue-500/5",
-          currentView === 'paid' && "bg-green-500/5",
-          currentView === 'backup' && "bg-orange-500/5"
-        )}>
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           {currentView === 'menu' && (
             <div className="space-y-2">
               <Button

@@ -109,7 +109,7 @@ export const EditVehicleDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
-          <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm">
+          <header className="border-b bg-blue-500/10 backdrop-blur-sm shadow-sm">
             <div className="px-4 py-3 flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -123,7 +123,7 @@ export const EditVehicleDialog = ({
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-blue-500/5">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs">Client</Label>
               <Input value={client?.name || 'Unknown Client'} disabled className="h-10" />

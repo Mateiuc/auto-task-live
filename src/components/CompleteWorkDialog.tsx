@@ -62,13 +62,13 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col bg-gradient-to-br from-primary/5 via-background to-accent/5">
-        <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm">
+        <header className="border-b bg-green-500/10 backdrop-blur-sm shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-primary">Complete Work Session</DialogTitle>
           </div>
         </header>
 
-        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1 bg-green-500/5">
+        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1">
           <Card className="bg-card/60 backdrop-blur-sm border-primary/20">
             <CardContent className="pt-6">
               <div className="space-y-2">
