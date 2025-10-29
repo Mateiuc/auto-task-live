@@ -200,7 +200,7 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
           </Card>
         </div>
 
-        <DialogFooter className="border-t bg-card/80 backdrop-blur-sm">
+        <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

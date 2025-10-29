@@ -703,7 +703,7 @@ export const EditTaskDialog = ({
           })}
         </div>
 
-        <DialogFooter className="px-2 py-1 border-t flex gap-2">
+        <DialogFooter className="px-4 py-3 border-t flex gap-2">
           <Button 
             variant="secondary" 
             onClick={handleAddNewSession} 
