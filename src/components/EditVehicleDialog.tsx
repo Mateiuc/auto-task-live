@@ -192,7 +192,7 @@ export const EditVehicleDialog = ({
             </div>
           </div>
 
-          <DialogFooter className="px-4 py-3 border-t flex gap-2">
+          <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancel
             </Button>

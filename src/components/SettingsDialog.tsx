@@ -491,7 +491,7 @@ export const SettingsDialog = ({
         </div>
 
         {currentView === 'settings' && (
-          <DialogFooter className="px-4 py-3 border-t">
+          <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm">
             <Button variant="outline" onClick={() => setCurrentView('menu')}>
               Cancel
             </Button>
