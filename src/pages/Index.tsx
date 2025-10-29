@@ -529,7 +529,7 @@ const Index = () => {
 
   return (
     <div className="h-dvh overflow-y-auto bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-bold text-primary">Auto Task Tracker</h1>
           <div className="flex items-center gap-2">
