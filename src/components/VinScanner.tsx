@@ -5,6 +5,7 @@ import { validateVin } from '@/lib/vinDecoder';
 import { readVinWithGemini } from '@/lib/geminiVinOcr';
 import { readVinWithGrok } from '@/lib/grokVinOcr';
 import { readVinWithOcrSpace } from '@/lib/ocrSpaceVinOcr';
+import { useToast } from '@/hooks/use-toast';
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
@@ -36,6 +37,8 @@ const VinScanner: React.FC<VinScannerProps> = ({
     heightPx: 128 
   });
   const [scanColor, setScanColor] = useState(0);
+  const { toast } = useToast();
+  const warnedNoKeyRef = useRef(false);
 
   // Color palette for scanning animation
   const scanningColors = [
@@ -120,6 +123,13 @@ const VinScanner: React.FC<VinScannerProps> = ({
                      (ocrProvider === 'ocrspace' && ocrSpaceApiKey);
     if (hasApiKey && isFrameReady && stream && !scanningRef.current) {
       startContinuousOcrScan();
+    } else if (!hasApiKey && isFrameReady && stream && !warnedNoKeyRef.current) {
+      warnedNoKeyRef.current = true;
+      toast({
+        title: 'OCR provider not configured',
+        description: `Set an API key for ${ocrProvider.toUpperCase()} in Settings to enable VIN scanning.`,
+        variant: 'destructive'
+      });
     }
   }, [googleApiKey, grokApiKey, ocrSpaceApiKey, ocrProvider, isFrameReady, stream]);
 
@@ -155,6 +165,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
+    let attempts = 0;
 
     if (!context) {
       setIsScanning(false);
@@ -165,6 +176,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
     while (scanningRef.current) {
       try {
         if (!containerRef.current || !guideRef.current) continue;
+        attempts++;
 
         // Get DOM rectangles
         const containerRect = containerRef.current.getBoundingClientRect();
@@ -209,6 +221,12 @@ const VinScanner: React.FC<VinScannerProps> = ({
         sw = Math.round(sw);
         sh = Math.round(sh);
 
+        console.log('[VIN Scan] attempt', attempts, 'provider', ocrProvider, {
+          video: { w: vsw, h: vsh },
+          display: { w: cw, h: ch, scale, dx, dy },
+          crop: { sx, sy, sw, sh }
+        });
+
         // Capture current frame (cropped to exact guide rectangle)
         canvas.width = sw;
         canvas.height = sh;
@@ -223,27 +241,17 @@ const VinScanner: React.FC<VinScannerProps> = ({
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         let vin: string | null = null;
-        if (ocrProvider === 'grok' && grokApiKey) {
-          vin = await readVinWithGrok({ 
-            base64Image: base64, 
-            apiKey: grokApiKey,
-            signal: controller.signal 
-          });
-        } else if (ocrProvider === 'ocrspace' && ocrSpaceApiKey) {
-          vin = await readVinWithOcrSpace({ 
-            base64Image: base64, 
-            apiKey: ocrSpaceApiKey,
-            signal: controller.signal 
-          });
-        } else if (googleApiKey) {
-          vin = await readVinWithGemini({ 
-            base64Image: base64, 
-            apiKey: googleApiKey,
-            signal: controller.signal 
-          });
+        try {
+          if (ocrProvider === 'grok' && grokApiKey) {
+            vin = await readVinWithGrok({ base64Image: base64, apiKey: grokApiKey, signal: controller.signal });
+          } else if (ocrProvider === 'ocrspace' && ocrSpaceApiKey) {
+            vin = await readVinWithOcrSpace({ base64Image: base64, apiKey: ocrSpaceApiKey, signal: controller.signal });
+          } else if (googleApiKey) {
+            vin = await readVinWithGemini({ base64Image: base64, apiKey: googleApiKey, signal: controller.signal });
+          }
+        } finally {
+          clearTimeout(timeoutId);
         }
-
-        clearTimeout(timeoutId);
 
         // If valid VIN found, stop scanning
         if (vin && validateVin(vin)) {
@@ -254,9 +262,17 @@ const VinScanner: React.FC<VinScannerProps> = ({
           return;
         }
 
+        // Periodic guidance toast
+        if (attempts % 5 === 0) {
+          toast({
+            title: 'Still scanning…',
+            description: 'No VIN detected yet. Tip: fill the frame, avoid glare, and align the VIN horizontally.',
+          });
+        }
+
         // Wait 1 second before next capture
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
       } catch (error) {
         console.error('OCR error:', error);
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -314,6 +330,13 @@ const VinScanner: React.FC<VinScannerProps> = ({
             />
           </div>
         </>
+
+      )}
+
+      {isScanning && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
+          Scanning with {ocrProvider.toUpperCase()}…
+        </div>
       )}
 
     </div>
