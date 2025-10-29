@@ -206,7 +206,7 @@ export const SettingsDialog = ({
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
         <header className={cn(
           "border-b backdrop-blur-sm shadow-sm transition-colors",
-          currentView === 'menu' && "bg-card/80",
+          currentView === 'menu' && "bg-primary/10",
           currentView === 'settings' && "bg-primary/10",
           currentView === 'billed' && "bg-blue-500/10",
           currentView === 'paid' && "bg-green-500/10",
