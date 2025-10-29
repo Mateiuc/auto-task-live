@@ -203,7 +203,7 @@ export const SettingsDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
-        <header className="border-b bg-card/50 backdrop-blur-sm">
+        <header className="border-b bg-card/80 backdrop-blur-sm shadow-sm">
           <div className="px-4 py-3 flex items-center gap-2">
             {currentView !== 'menu' && (
               <Button
