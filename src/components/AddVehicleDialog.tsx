@@ -176,7 +176,7 @@ export const AddVehicleDialog = ({
           </div>
         </header>
 
-        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1 bg-primary/5">
           <Card className="border-border/50">
             <CardContent className="p-4 space-y-2 flex flex-col justify-center">
               <Label>Client *</Label>

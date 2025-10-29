@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ManageClientsDialog } from './ManageClientsDialog';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
 import { BackupView } from './BackupView';
+import { cn } from '@/lib/utils';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -219,7 +220,13 @@ export const SettingsDialog = ({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div className={cn(
+          "flex-1 overflow-y-auto px-4 py-3 transition-colors",
+          currentView === 'settings' && "bg-primary/5",
+          currentView === 'billed' && "bg-blue-500/5",
+          currentView === 'paid' && "bg-green-500/5",
+          currentView === 'backup' && "bg-orange-500/5"
+        )}>
           {currentView === 'menu' && (
             <div className="space-y-2">
               <Button

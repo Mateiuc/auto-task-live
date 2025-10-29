@@ -424,7 +424,7 @@ export const ManageClientsDialog = ({
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 bg-purple-500/5">
             {filteredClients.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p className="text-sm">{searchQuery ? 'No clients found' : 'No clients yet'}</p>

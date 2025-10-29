@@ -53,7 +53,7 @@ export const AddClientDialog = ({ open, onOpenChange, onSave }: AddClientDialogP
           </div>
         </header>
 
-        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1 bg-purple-500/5">
           <div className="space-y-2">
             <Label>Name *</Label>
             <Input 

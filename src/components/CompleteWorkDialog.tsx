@@ -68,7 +68,7 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
           </div>
         </header>
 
-        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 py-3 space-y-4 overflow-y-auto flex-1 bg-green-500/5">
           <Card className="bg-card/60 backdrop-blur-sm border-primary/20">
             <CardContent className="pt-6">
               <div className="space-y-2">

@@ -123,7 +123,7 @@ export const EditVehicleDialog = ({
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-blue-500/5">
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs">Client</Label>
               <Input value={client?.name || 'Unknown Client'} disabled className="h-10" />
