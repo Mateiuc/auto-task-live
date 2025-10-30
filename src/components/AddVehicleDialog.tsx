@@ -183,7 +183,11 @@ export const AddVehicleDialog = ({
             <CardContent className="p-4 space-y-2 flex flex-col justify-center">
               <Label>VIN *</Label>
               
-              <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">
+              <Button 
+                onClick={() => setShowVinScanner(true)} 
+                className="w-full mb-2 bg-emerald-500/20 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/30 hover:border-emerald-500/40 dark:text-emerald-300" 
+                variant="outline"
+              >
                 <Scan className="h-4 w-4 mr-2" />
                 Scan VIN with Camera
               </Button>
