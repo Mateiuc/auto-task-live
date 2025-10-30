@@ -67,8 +67,19 @@ export const readVinWithOcrSpace = async ({
     // Extract text from parsed results
     const parsedText = data.ParsedResults?.[0]?.ParsedText || '';
     
-    // Extract all 17-char candidates
-    const rawCandidates = parsedText.match(/[A-HJ-NPR-Z0-9]{17}/g) || [];
+    // Fix common OCR character recognition errors
+    // OCR often misreads VIN characters due to image quality/angle
+    const cleanedText = parsedText
+      .replace(/[ÜúùûµÙÛ]/g, 'U')       // Ü → U
+      .replace(/[ÖóòôõøØ]/g, 'O')       // Ö → O
+      .replace(/[ÄáàâãÅåÀÁÂÃ]/g, 'A')   // Ä → A
+      .replace(/[ÉéèêëÈÊË]/g, 'E')      // É → E
+      .replace(/[ÏïîíìÌÍÎ]/g, 'I')      // Ï → I
+      .replace(/[^A-HJ-NPR-Z0-9\s]/g, '') // Remove any remaining invalid chars
+      .replace(/\s+/g, '');              // Remove all whitespace
+    
+    // Extract all 17-char candidates from cleaned text
+    const rawCandidates = cleanedText.match(/.{17}/g) || [];
     const candidatesWithVariants: string[] = [];
     const candidateInfo: Array<{ vin: string; valid: boolean; checksum: boolean }> = [];
 
