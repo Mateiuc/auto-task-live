@@ -75,11 +75,21 @@ export const readVinWithOcrSpace = async ({
       .replace(/[ÄáàâãÅåÀÁÂÃ]/g, 'A')   // Ä → A
       .replace(/[ÉéèêëÈÊË]/g, 'E')      // É → E
       .replace(/[ÏïîíìÌÍÎ]/g, 'I')      // Ï → I
-      .replace(/[^A-HJ-NPR-Z0-9\s]/g, '') // Remove any remaining invalid chars
-      .replace(/\s+/g, '');              // Remove all whitespace
+      .replace(/[^A-HJ-NPR-Z0-9\s\r\n]/g, ''); // Keep line breaks, remove invalid chars
     
-    // Extract all 17-char candidates from cleaned text
-    const rawCandidates = cleanedText.match(/.{17}/g) || [];
+    // Split by lines and look for VIN on each line
+    const lines = cleanedText.split(/[\r\n]+/);
+    const rawCandidates: string[] = [];
+    
+    for (const line of lines) {
+      // Remove ALL whitespace from this line only
+      const cleanLine = line.replace(/\s+/g, '');
+      
+      // Check if this line is exactly 17 valid VIN characters
+      if (cleanLine.length === 17 && /^[A-HJ-NPR-Z0-9]{17}$/.test(cleanLine)) {
+        rawCandidates.push(cleanLine);
+      }
+    }
     const candidatesWithVariants: string[] = [];
     const candidateInfo: Array<{ vin: string; valid: boolean; checksum: boolean }> = [];
 
