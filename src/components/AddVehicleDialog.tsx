@@ -43,12 +43,6 @@ export const AddVehicleDialog = ({
     toast
   } = useToast();
 
-  // Auto-open VIN scanner when dialog opens
-  useEffect(() => {
-    if (open) {
-      setShowVinScanner(true);
-    }
-  }, [open]);
   const handleContactSelect = (contact: PhoneContact) => {
     // Store contact data and trigger client creation
     setPendingContactData(contact);
@@ -168,7 +162,8 @@ export const AddVehicleDialog = ({
     setColor('');
     onOpenChange(false);
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}>
+  return <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
         <header className="border-b bg-primary/10 backdrop-blur-sm shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -188,21 +183,10 @@ export const AddVehicleDialog = ({
             <CardContent className="p-4 space-y-2 flex flex-col justify-center">
               <Label>VIN *</Label>
               
-              {showVinScanner ? <div className="relative border border-border rounded-md overflow-hidden bg-black/90 mb-2">
-                  <div className="aspect-[4/3] w-full">
-        <VinScanner
-          onVinDetected={handleVinDetected}
-          onClose={() => setShowVinScanner(false)}
-          googleApiKey={settings.googleApiKey}
-          grokApiKey={settings.grokApiKey}
-          ocrSpaceApiKey={settings.ocrSpaceApiKey}
-          ocrProvider={settings.ocrProvider}
-        />
-                  </div>
-                </div> : <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">
-                  <Scan className="h-4 w-4 mr-2" />
-                  Scan VIN with Camera
-                </Button>}
+              <Button onClick={() => setShowVinScanner(true)} className="w-full mb-2" variant="outline">
+                <Scan className="h-4 w-4 mr-2" />
+                Scan VIN with Camera
+              </Button>
 
               <Input value={vin} onChange={e => {
                 const newVin = e.target.value.toUpperCase();
@@ -250,5 +234,18 @@ export const AddVehicleDialog = ({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>;
+    </Dialog>
+
+    {/* Full-screen VIN Scanner overlay */}
+    {showVinScanner && (
+      <VinScanner
+        onVinDetected={handleVinDetected}
+        onClose={() => setShowVinScanner(false)}
+        googleApiKey={settings.googleApiKey}
+        grokApiKey={settings.grokApiKey}
+        ocrSpaceApiKey={settings.ocrSpaceApiKey}
+        ocrProvider={settings.ocrProvider}
+      />
+    )}
+  </>;
 };

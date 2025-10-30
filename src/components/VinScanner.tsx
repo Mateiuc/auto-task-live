@@ -402,7 +402,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div ref={containerRef} className="fixed inset-0 z-50 bg-black">
       <video
         ref={videoRef}
         autoPlay
