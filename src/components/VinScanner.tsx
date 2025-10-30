@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { X, Bug, Copy } from 'lucide-react';
 import { validateVinStrict } from '@/lib/vinDecoder';
 import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/geminiVinOcr';
@@ -404,8 +404,18 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col bg-black">
-        <div ref={containerRef} className="relative w-full aspect-[4/3] flex-shrink-0">
+      <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col">
+        
+        {/* Emerald header */}
+        <header className="border-b bg-emerald-500/20 border-emerald-500/30 backdrop-blur-sm shadow-sm">
+          <div className="px-4 py-3">
+            <DialogTitle className="text-base font-bold text-emerald-700 dark:text-emerald-300">Scan VIN</DialogTitle>
+          </div>
+        </header>
+
+        {/* Camera + Debug scrollable area */}
+        <div className="flex-1 overflow-y-auto bg-black">
+          <div ref={containerRef} className="relative w-full aspect-[4/3] flex-shrink-0">
         <video
           ref={videoRef}
           autoPlay
@@ -413,17 +423,6 @@ const VinScanner: React.FC<VinScannerProps> = ({
           className="w-full h-full object-cover"
         />
         <canvas ref={canvasRef} className="hidden" />
-        
-        <div className="absolute top-2 right-2 z-10">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
 
       {isFrameReady && (
         <>
@@ -608,6 +607,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
               )}
             </>
           )}
+        </div>
         </div>
       </DialogContent>
     </Dialog>
