@@ -402,25 +402,26 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 bg-black">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="w-full h-full object-cover"
-      />
-      <canvas ref={canvasRef} className="hidden" />
-      
-      <div className="absolute top-2 right-2 z-10">
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={onClose}
-          className="h-8 w-8 p-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center">
+      <div ref={containerRef} className="relative w-full max-w-2xl aspect-[4/3]">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-full object-cover"
+        />
+        <canvas ref={canvasRef} className="hidden" />
+        
+        <div className="absolute top-2 right-2 z-10">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
       {isFrameReady && (
         <>
@@ -613,6 +614,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
         </div>
       )}
 
+      </div>
     </div>
   );
 };
