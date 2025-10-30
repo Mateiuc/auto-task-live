@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X, Bug, Copy } from 'lucide-react';
 import { validateVinStrict } from '@/lib/vinDecoder';
 import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/geminiVinOcr';
@@ -402,9 +403,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/90">
-      <div className="mx-auto h-full max-h-[100svh] w-full max-w-md flex flex-col p-3 overflow-hidden">
-        <div ref={containerRef} className="relative w-full aspect-[4/3]">
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col bg-black">
+        <div ref={containerRef} className="relative w-full aspect-[4/3] flex-shrink-0">
         <video
           ref={videoRef}
           autoPlay
@@ -462,7 +463,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
         </div>
 
         {/* Debug panel below camera */}
-        <div className="mt-3 flex-1 min-h-0 overflow-y-auto rounded bg-background/95 backdrop-blur p-3 border space-y-2 text-xs">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-background/95 p-3 space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Debug Panel</h3>
             <div className="flex gap-2">
@@ -608,8 +609,8 @@ const VinScanner: React.FC<VinScannerProps> = ({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
