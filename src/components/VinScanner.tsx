@@ -1,11 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
-import { validateVin } from '@/lib/vinDecoder';
-import { readVinWithGemini } from '@/lib/geminiVinOcr';
-import { readVinWithGrok } from '@/lib/grokVinOcr';
-import { readVinWithOcrSpace } from '@/lib/ocrSpaceVinOcr';
+import { X, Bug, Copy } from 'lucide-react';
+import { validateVinStrict } from '@/lib/vinDecoder';
+import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/geminiVinOcr';
+import { readVinWithGrok, type OcrResult as GrokOcrResult } from '@/lib/grokVinOcr';
+import { readVinWithOcrSpace, type OcrResult as OcrSpaceOcrResult } from '@/lib/ocrSpaceVinOcr';
 import { useToast } from '@/hooks/use-toast';
+
+type OcrResult = GeminiOcrResult | GrokOcrResult | OcrSpaceOcrResult;
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
@@ -39,6 +41,12 @@ const VinScanner: React.FC<VinScannerProps> = ({
   const [scanColor, setScanColor] = useState(0);
   const { toast } = useToast();
   const warnedNoKeyRef = useRef(false);
+  
+  // Debug state
+  const [debugMode, setDebugMode] = useState(false);
+  const [lastFrameDataUrl, setLastFrameDataUrl] = useState<string>('');
+  const [lastOcrResult, setLastOcrResult] = useState<OcrResult | null>(null);
+  const [captureMode, setCaptureMode] = useState<'auto' | 'manual'>('auto');
 
   // Color palette for scanning animation
   const scanningColors = [
@@ -153,6 +161,116 @@ const VinScanner: React.FC<VinScannerProps> = ({
     }
   };
 
+  // Capture single frame for manual mode
+  const captureSingleFrame = async (provider?: 'gemini' | 'grok' | 'ocrspace') => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context || !containerRef.current || !guideRef.current) return;
+
+    const providerToUse = provider || ocrProvider;
+    const apiKey = providerToUse === 'grok' ? grokApiKey : 
+                   providerToUse === 'ocrspace' ? ocrSpaceApiKey : googleApiKey;
+
+    if (!apiKey) {
+      toast({
+        title: 'API key missing',
+        description: `Configure ${providerToUse.toUpperCase()} API key in Settings.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Get DOM rectangles
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const guideRect = guideRef.current.getBoundingClientRect();
+    const cw = containerRect.width;
+    const ch = containerRect.height;
+    const vsw = video.videoWidth;
+    const vsh = video.videoHeight;
+    const scale = Math.max(cw / vsw, ch / vsh);
+    const dw = vsw * scale;
+    const dh = vsh * scale;
+    const dx = Math.max(0, (dw - cw) / 2);
+    const dy = Math.max(0, (dh - ch) / 2);
+    const ox = guideRect.left - containerRect.left;
+    const oy = guideRect.top - containerRect.top;
+    const ow = guideRect.width;
+    const oh = guideRect.height;
+    let sx = (ox + dx) / scale;
+    let sy = (oy + dy) / scale;
+    let sw = ow / scale;
+    let sh = oh / scale;
+    sx = Math.max(0, Math.min(sx, vsw));
+    sy = Math.max(0, Math.min(sy, vsh));
+    sw = Math.min(sw, vsw - sx);
+    sh = Math.min(sh, vsh - sy);
+    sx = Math.round(sx);
+    sy = Math.round(sy);
+    sw = Math.round(sw);
+    sh = Math.round(sh);
+
+    // Capture frame
+    canvas.width = sw;
+    canvas.height = sh;
+    context.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+    const base64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    
+    setLastFrameDataUrl(dataUrl);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      let result: string | null | OcrResult = null;
+      if (providerToUse === 'grok') {
+        result = await readVinWithGrok({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+      } else if (providerToUse === 'ocrspace') {
+        result = await readVinWithOcrSpace({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+      } else {
+        result = await readVinWithGemini({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+      }
+
+      if (result && typeof result === 'object') {
+        setLastOcrResult(result);
+        
+        if (result.vin) {
+          toast({
+            title: 'VIN detected',
+            description: result.vin,
+          });
+          onVinDetected(result.vin);
+          stopCamera();
+        } else {
+          const failedChecksum = result.candidates.find(c => c.valid && !c.checksum);
+          if (failedChecksum) {
+            toast({
+              title: 'Possible VIN found but checksum failed',
+              description: 'Adjust framing and try again.',
+              variant: 'destructive'
+            });
+          } else {
+            toast({
+              title: 'No valid VIN detected',
+              description: 'Try adjusting the frame or lighting.',
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast({
+        title: 'OCR failed',
+        description: 'Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   const startContinuousOcrScan = async () => {
     const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || 
                      (ocrProvider === 'gemini' && googleApiKey) ||
@@ -243,18 +361,19 @@ const VinScanner: React.FC<VinScannerProps> = ({
         let vin: string | null = null;
         try {
           if (ocrProvider === 'grok' && grokApiKey) {
-            vin = await readVinWithGrok({ base64Image: base64, apiKey: grokApiKey, signal: controller.signal });
+            vin = await readVinWithGrok({ base64Image: base64, apiKey: grokApiKey, signal: controller.signal, debug: false }) as string | null;
           } else if (ocrProvider === 'ocrspace' && ocrSpaceApiKey) {
-            vin = await readVinWithOcrSpace({ base64Image: base64, apiKey: ocrSpaceApiKey, signal: controller.signal });
+            vin = await readVinWithOcrSpace({ base64Image: base64, apiKey: ocrSpaceApiKey, signal: controller.signal, debug: false }) as string | null;
           } else if (googleApiKey) {
-            vin = await readVinWithGemini({ base64Image: base64, apiKey: googleApiKey, signal: controller.signal });
+            vin = await readVinWithGemini({ base64Image: base64, apiKey: googleApiKey, signal: controller.signal, debug: false }) as string | null;
           }
         } finally {
           clearTimeout(timeoutId);
         }
 
-        // If valid VIN found, stop scanning
-        if (vin && validateVin(vin)) {
+        // If valid VIN found with strict validation, stop scanning
+        if (vin && validateVinStrict(vin)) {
+          console.log('[VIN Scan] Valid VIN detected:', vin);
           onVinDetected(vin);
           stopCamera();
           scanningRef.current = false;
@@ -336,6 +455,161 @@ const VinScanner: React.FC<VinScannerProps> = ({
       {isScanning && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
           Scanning with {ocrProvider.toUpperCase()}…
+        </div>
+      )}
+
+      {/* Debug toggle button */}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => {
+          setDebugMode(!debugMode);
+          if (!debugMode) setCaptureMode('manual');
+        }}
+        className="absolute top-16 right-3 bg-background/70 backdrop-blur"
+      >
+        <Bug className="h-4 w-4" />
+      </Button>
+
+      {/* Debug panel */}
+      {debugMode && (
+        <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] overflow-y-auto bg-background/95 backdrop-blur p-3 text-xs space-y-2 border-t">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Debug Panel</h3>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={captureMode === 'auto' ? 'default' : 'outline'}
+                onClick={() => {
+                  setCaptureMode('auto');
+                  if (!scanningRef.current) startContinuousOcrScan();
+                }}
+              >
+                Auto
+              </Button>
+              <Button
+                size="sm"
+                variant={captureMode === 'manual' ? 'default' : 'outline'}
+                onClick={() => {
+                  setCaptureMode('manual');
+                  scanningRef.current = false;
+                  setIsScanning(false);
+                }}
+              >
+                Manual
+              </Button>
+            </div>
+          </div>
+
+          {captureMode === 'manual' && (
+            <div className="space-y-2">
+              <Button
+                size="sm"
+                onClick={() => captureSingleFrame()}
+                className="w-full"
+              >
+                Capture with {ocrProvider.toUpperCase()}
+              </Button>
+              <div className="flex gap-2">
+                {ocrProvider !== 'gemini' && googleApiKey && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => captureSingleFrame('gemini')}
+                    className="flex-1"
+                  >
+                    Retry: Gemini
+                  </Button>
+                )}
+                {ocrProvider !== 'grok' && grokApiKey && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => captureSingleFrame('grok')}
+                    className="flex-1"
+                  >
+                    Retry: Grok
+                  </Button>
+                )}
+                {ocrProvider !== 'ocrspace' && ocrSpaceApiKey && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => captureSingleFrame('ocrspace')}
+                    className="flex-1"
+                  >
+                    Retry: OCR.space
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {lastFrameDataUrl && (
+            <div>
+              <p className="font-medium mb-1">Last Captured Frame:</p>
+              <img src={lastFrameDataUrl} alt="Last frame" className="w-full border rounded" />
+            </div>
+          )}
+
+          {lastOcrResult && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-medium">Raw OCR Text:</p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastOcrResult.rawText);
+                      toast({ title: 'Copied to clipboard' });
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <pre className="bg-muted p-2 rounded overflow-x-auto">{lastOcrResult.rawText}</pre>
+              </div>
+
+              <div>
+                <p className="font-medium mb-1">VIN Candidates:</p>
+                {lastOcrResult.candidates.length === 0 ? (
+                  <p className="text-muted-foreground">No 17-char candidates found</p>
+                ) : (
+                  <div className="space-y-1">
+                    {lastOcrResult.candidates.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between bg-muted p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono">{c.vin}</code>
+                          <span className={c.checksum ? 'text-green-600' : 'text-red-600'}>
+                            {c.checksum ? '✓ Valid' : c.valid ? '✗ Checksum failed' : '✗ Invalid format'}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            navigator.clipboard.writeText(c.vin);
+                            toast({ title: 'Copied to clipboard' });
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {lastOcrResult.vin && (
+                <div className="p-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded">
+                  <p className="font-medium text-green-900 dark:text-green-100">
+                    ✓ Accepted VIN: {lastOcrResult.vin}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

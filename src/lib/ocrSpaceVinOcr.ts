@@ -1,9 +1,16 @@
-import { validateVin } from './vinDecoder';
+import { validateVin, generateVinCandidates, validateVinStrict } from './vinDecoder';
+
+export interface OcrResult {
+  vin: string | null;
+  rawText: string;
+  candidates: Array<{ vin: string; valid: boolean; checksum: boolean }>;
+}
 
 interface OcrSpaceParams {
   base64Image: string;
   apiKey: string;
   signal?: AbortSignal;
+  debug?: boolean;
 }
 
 interface OcrSpaceResponse {
@@ -18,8 +25,9 @@ interface OcrSpaceResponse {
 export const readVinWithOcrSpace = async ({ 
   base64Image, 
   apiKey,
-  signal 
-}: OcrSpaceParams): Promise<string | null> => {
+  signal,
+  debug = false
+}: OcrSpaceParams): Promise<string | null | OcrResult> => {
   try {
     // OCR Space expects data URI format
     const imageDataUri = `data:image/jpeg;base64,${base64Image}`;
@@ -59,28 +67,30 @@ export const readVinWithOcrSpace = async ({
     // Extract text from parsed results
     const parsedText = data.ParsedResults?.[0]?.ParsedText || '';
     
-    // Fix common OCR mistakes (I->1, O->0) and normalize to uppercase
-    const cleanedText = parsedText
-      .toUpperCase()
-      .replace(/I/g, '1')
-      .replace(/O/g, '0');
-    
-    // Extract potential VIN using regex
-    // Look for 17 consecutive alphanumeric characters (no I, O, Q)
-    const vinPattern = /[A-HJ-NPR-Z0-9]{17}/g;
-    const matches = cleanedText.match(vinPattern);
-    
-    if (matches) {
-      for (const match of matches) {
-        if (validateVin(match)) {
-          console.log('Valid VIN found with OCR Space:', match);
-          return match;
+    // Extract all 17-char candidates
+    const rawCandidates = parsedText.match(/[A-HJ-NPR-Z0-9]{17}/g) || [];
+    const candidatesWithVariants: string[] = [];
+    const candidateInfo: Array<{ vin: string; valid: boolean; checksum: boolean }> = [];
+
+    for (const raw of rawCandidates) {
+      const variants = generateVinCandidates(raw);
+      for (const v of variants) {
+        if (!candidatesWithVariants.includes(v)) {
+          candidatesWithVariants.push(v);
+          const valid = validateVin(v);
+          const checksum = validateVinStrict(v);
+          candidateInfo.push({ vin: v, valid, checksum });
         }
       }
     }
 
-    console.log('No valid VIN found in OCR Space text:', parsedText);
-    return null;
+    // Find first candidate that passes strict validation
+    const validVin = candidatesWithVariants.find(validateVinStrict) || null;
+
+    if (debug) {
+      return { vin: validVin, rawText: parsedText, candidates: candidateInfo };
+    }
+    return validVin;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       console.log('OCR Space request aborted');

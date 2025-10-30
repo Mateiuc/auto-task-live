@@ -1,14 +1,22 @@
-import { validateVin } from './vinDecoder';
+import { validateVin, generateVinCandidates, validateVinStrict } from './vinDecoder';
+
+export interface OcrResult {
+  vin: string | null;
+  rawText: string;
+  candidates: Array<{ vin: string; valid: boolean; checksum: boolean }>;
+}
 
 export async function readVinWithGrok({
   base64Image,
   apiKey,
   signal,
+  debug = false,
 }: {
   base64Image: string;
   apiKey: string;
   signal?: AbortSignal;
-}): Promise<string | null> {
+  debug?: boolean;
+}): Promise<string | null | OcrResult> {
   if (!apiKey) return null;
 
   // Build the prompt: strict instruction to emit only the VIN string
@@ -62,9 +70,30 @@ export async function readVinWithGrok({
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content?.trim() || '';
 
-    // Extract first valid VIN
-    const match = (text.match(/[A-HJ-NPR-Z0-9]{17}/g) || []).find(validateVin);
-    return match || null;
+    // Extract all 17-char candidates
+    const rawCandidates = text.match(/[A-HJ-NPR-Z0-9]{17}/g) || [];
+    const candidatesWithVariants: string[] = [];
+    const candidateInfo: Array<{ vin: string; valid: boolean; checksum: boolean }> = [];
+
+    for (const raw of rawCandidates) {
+      const variants = generateVinCandidates(raw);
+      for (const v of variants) {
+        if (!candidatesWithVariants.includes(v)) {
+          candidatesWithVariants.push(v);
+          const valid = validateVin(v);
+          const checksum = validateVinStrict(v);
+          candidateInfo.push({ vin: v, valid, checksum });
+        }
+      }
+    }
+
+    // Find first candidate that passes strict validation
+    const validVin = candidatesWithVariants.find(validateVinStrict) || null;
+
+    if (debug) {
+      return { vin: validVin, rawText: text, candidates: candidateInfo };
+    }
+    return validVin;
   } catch (error) {
     console.error('Grok OCR request failed:', error);
     return null;
