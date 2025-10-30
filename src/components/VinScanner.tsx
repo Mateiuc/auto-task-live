@@ -402,8 +402,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center">
-      <div ref={containerRef} className="relative w-full max-w-2xl aspect-[4/3]">
+    <div className="fixed inset-0 z-[1000] bg-black/90">
+      <div className="mx-auto h-full max-h-[100svh] w-full max-w-md flex flex-col p-3 overflow-hidden">
+        <div ref={containerRef} className="relative w-full aspect-[4/3]">
         <video
           ref={videoRef}
           autoPlay
@@ -453,31 +454,26 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
       )}
 
-      {isScanning && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
-          Scanning with {ocrProvider.toUpperCase()}…
+        {isScanning && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
+            Scanning with {ocrProvider.toUpperCase()}…
+          </div>
+        )}
         </div>
-      )}
 
-      {/* Debug toggle button */}
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => {
-          setDebugMode(!debugMode);
-          if (!debugMode) setCaptureMode('manual');
-        }}
-        className="absolute top-16 right-3 bg-background/70 backdrop-blur"
-      >
-        <Bug className="h-4 w-4" />
-      </Button>
-
-      {/* Debug panel */}
-      {debugMode && (
-        <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] overflow-y-auto bg-background/95 backdrop-blur p-3 text-xs space-y-2 border-t">
+        {/* Debug panel below camera */}
+        <div className="mt-3 flex-1 min-h-0 overflow-y-auto rounded bg-background/95 backdrop-blur p-3 border space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Debug Panel</h3>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDebugMode(!debugMode)}
+                className="h-7 w-7"
+              >
+                <Bug className="h-3 w-3" />
+              </Button>
               <Button
                 size="sm"
                 variant={captureMode === 'auto' ? 'default' : 'outline'}
@@ -612,8 +608,6 @@ const VinScanner: React.FC<VinScannerProps> = ({
             </>
           )}
         </div>
-      )}
-
       </div>
     </div>
   );
