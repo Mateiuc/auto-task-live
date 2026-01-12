@@ -68,6 +68,6 @@ export interface Settings {
   googleApiKey?: string;
   grokApiKey?: string;
   ocrSpaceApiKey?: string;
-  ocrProvider?: 'gemini' | 'grok' | 'ocrspace';
+  ocrProvider?: 'gemini' | 'grok' | 'ocrspace' | 'tesseract';
   backup?: BackupSettings;
 }

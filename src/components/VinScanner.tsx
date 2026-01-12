@@ -6,9 +6,10 @@ import { validateVinStrict } from '@/lib/vinDecoder';
 import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/geminiVinOcr';
 import { readVinWithGrok, type OcrResult as GrokOcrResult } from '@/lib/grokVinOcr';
 import { readVinWithOcrSpace, type OcrResult as OcrSpaceOcrResult } from '@/lib/ocrSpaceVinOcr';
+import { readVinWithTesseract, type OcrResult as TesseractOcrResult } from '@/lib/tesseractVinOcr';
 import { useToast } from '@/hooks/use-toast';
 
-type OcrResult = GeminiOcrResult | GrokOcrResult | OcrSpaceOcrResult;
+type OcrResult = GeminiOcrResult | GrokOcrResult | OcrSpaceOcrResult | TesseractOcrResult;
 
 interface VinScannerProps {
   onVinDetected: (vin: string) => void;
@@ -16,7 +17,7 @@ interface VinScannerProps {
   googleApiKey?: string;
   grokApiKey?: string;
   ocrSpaceApiKey?: string;
-  ocrProvider?: 'gemini' | 'grok' | 'ocrspace';
+  ocrProvider?: 'gemini' | 'grok' | 'ocrspace' | 'tesseract';
 }
 
 const VinScanner: React.FC<VinScannerProps> = ({ 
@@ -127,7 +128,8 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
   // Auto-start continuous OCR scan when frame is ready
   useEffect(() => {
-    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || 
+    const hasApiKey = ocrProvider === 'tesseract' ||
+                     (ocrProvider === 'grok' && grokApiKey) || 
                      (ocrProvider === 'gemini' && googleApiKey) ||
                      (ocrProvider === 'ocrspace' && ocrSpaceApiKey);
     if (hasApiKey && isFrameReady && stream && !scanningRef.current) {
@@ -163,7 +165,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   // Capture single frame for manual mode
-  const captureSingleFrame = async (provider?: 'gemini' | 'grok' | 'ocrspace') => {
+  const captureSingleFrame = async (provider?: 'gemini' | 'grok' | 'ocrspace' | 'tesseract') => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
@@ -172,9 +174,11 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
     const providerToUse = provider || ocrProvider;
     const apiKey = providerToUse === 'grok' ? grokApiKey : 
-                   providerToUse === 'ocrspace' ? ocrSpaceApiKey : googleApiKey;
+                   providerToUse === 'ocrspace' ? ocrSpaceApiKey : 
+                   providerToUse === 'tesseract' ? undefined : googleApiKey;
 
-    if (!apiKey) {
+    // Tesseract doesn't need an API key
+    if (providerToUse !== 'tesseract' && !apiKey) {
       toast({
         title: 'API key missing',
         description: `Configure ${providerToUse.toUpperCase()} API key in Settings.`,
@@ -226,12 +230,14 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
     try {
       let result: string | null | OcrResult = null;
-      if (providerToUse === 'grok') {
-        result = await readVinWithGrok({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+      if (providerToUse === 'tesseract') {
+        result = await readVinWithTesseract({ base64Image: base64, signal: controller.signal, debug: true });
+      } else if (providerToUse === 'grok') {
+        result = await readVinWithGrok({ base64Image: base64, apiKey: apiKey!, signal: controller.signal, debug: true });
       } else if (providerToUse === 'ocrspace') {
-        result = await readVinWithOcrSpace({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+        result = await readVinWithOcrSpace({ base64Image: base64, apiKey: apiKey!, signal: controller.signal, debug: true });
       } else {
-        result = await readVinWithGemini({ base64Image: base64, apiKey, signal: controller.signal, debug: true });
+        result = await readVinWithGemini({ base64Image: base64, apiKey: apiKey!, signal: controller.signal, debug: true });
       }
 
       if (result && typeof result === 'object') {
@@ -273,7 +279,8 @@ const VinScanner: React.FC<VinScannerProps> = ({
   };
 
   const startContinuousOcrScan = async () => {
-    const hasApiKey = (ocrProvider === 'grok' && grokApiKey) || 
+    const hasApiKey = ocrProvider === 'tesseract' ||
+                     (ocrProvider === 'grok' && grokApiKey) || 
                      (ocrProvider === 'gemini' && googleApiKey) ||
                      (ocrProvider === 'ocrspace' && ocrSpaceApiKey);
     if (!videoRef.current || !canvasRef.current || !hasApiKey) return;
@@ -361,7 +368,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
         let vin: string | null = null;
         try {
-          if (ocrProvider === 'grok' && grokApiKey) {
+          if (ocrProvider === 'tesseract') {
+            vin = await readVinWithTesseract({ base64Image: base64, signal: controller.signal, debug: false }) as string | null;
+          } else if (ocrProvider === 'grok' && grokApiKey) {
             vin = await readVinWithGrok({ base64Image: base64, apiKey: grokApiKey, signal: controller.signal, debug: false }) as string | null;
           } else if (ocrProvider === 'ocrspace' && ocrSpaceApiKey) {
             vin = await readVinWithOcrSpace({ base64Image: base64, apiKey: ocrSpaceApiKey, signal: controller.signal, debug: false }) as string | null;
@@ -456,7 +465,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
         {isScanning && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
-            Scanning with {ocrProvider.toUpperCase()}…
+            Scanning with {ocrProvider === 'tesseract' ? 'TESSERACT (Offline)' : ocrProvider.toUpperCase()}…
           </div>
         )}
         </div>
