@@ -76,7 +76,7 @@ export const SettingsDialog = ({
   const [googleApiKey, setGoogleApiKey] = useState(settings.googleApiKey || '');
   const [grokApiKey, setGrokApiKey] = useState(settings.grokApiKey || '');
   const [ocrSpaceApiKey, setOcrSpaceApiKey] = useState(settings.ocrSpaceApiKey || '');
-  const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok' | 'ocrspace'>(settings.ocrProvider || 'gemini');
+  const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok' | 'ocrspace' | 'tesseract'>(settings.ocrProvider || 'gemini');
 
   useEffect(() => {
     setGoogleApiKey(settings.googleApiKey || '');
@@ -305,7 +305,11 @@ export const SettingsDialog = ({
 
               <div className="space-y-2">
                 <Label>OCR Provider (for VIN Scanning)</Label>
-                <RadioGroup value={ocrProvider} onValueChange={(value) => setOcrProvider(value as 'gemini' | 'grok' | 'ocrspace')}>
+                <RadioGroup value={ocrProvider} onValueChange={(value) => setOcrProvider(value as 'gemini' | 'grok' | 'ocrspace' | 'tesseract')}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="tesseract" id="tesseract" />
+                    <Label htmlFor="tesseract" className="font-normal cursor-pointer">Tesseract.js (Free - Offline)</Label>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="gemini" id="gemini" />
                     <Label htmlFor="gemini" className="font-normal cursor-pointer">Google Gemini</Label>
@@ -320,6 +324,17 @@ export const SettingsDialog = ({
                   </div>
                 </RadioGroup>
               </div>
+
+              {ocrProvider === 'tesseract' && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                    ✓ Tesseract.js runs entirely in your browser — no API key needed!
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    First scan may take a few seconds to download the language model (~4MB, cached afterward).
+                  </p>
+                </div>
+              )}
 
               {ocrProvider === 'gemini' && (
                 <div className="space-y-2">
