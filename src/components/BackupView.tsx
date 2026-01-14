@@ -4,17 +4,36 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { backupManager } from '@/lib/backupManager';
 import { useBackupSettings } from '@/hooks/useBackupSettings';
+import { useCloudSync } from '@/hooks/useCloudSync';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Upload, Download, FileText, Calendar, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { 
+  Loader2, Upload, Download, FileText, Calendar, ArrowLeft, 
+  AlertTriangle, CheckCircle2, Cloud, CloudOff, RefreshCw,
+  Settings2, Link, Unlink
+} from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Capacitor } from '@capacitor/core';
 import { Alert, AlertDescription } from './ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { SYNC_INTERVALS } from '@/config/googleDrive';
+import { Input } from './ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface BackupViewProps {
   onBack: () => void;
+  googleApiKey?: string;
 }
 
-export function BackupView({ onBack }: BackupViewProps) {
+export function BackupView({ onBack, googleApiKey }: BackupViewProps) {
   const { backupSettings, setBackupSettings } = useBackupSettings();
   const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
@@ -22,10 +41,37 @@ export function BackupView({ onBack }: BackupViewProps) {
   const [backups, setBackups] = useState<Array<{ name: string; created: Date }>>([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [exportingLatest, setExportingLatest] = useState(false);
+  const [showClientIdInput, setShowClientIdInput] = useState(false);
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  
+  const {
+    status: syncStatus,
+    isConnected,
+    userEmail,
+    lastSyncDate,
+    lastError,
+    settings: cloudSettings,
+    cloudBackups,
+    isLoading: cloudLoading,
+    connect,
+    disconnect,
+    syncNow,
+    restoreFromCloud,
+    updateSettings,
+    loadCloudBackups,
+  } = useCloudSync();
 
   useEffect(() => {
     loadBackups();
   }, []);
+  
+  useEffect(() => {
+    if (isConnected) {
+      loadCloudBackups();
+    }
+  }, [isConnected, loadCloudBackups]);
 
   const loadBackups = async () => {
     setLoadingBackups(true);
@@ -110,8 +156,76 @@ export function BackupView({ onBack }: BackupViewProps) {
       setExportingLatest(false);
     }
   };
+  
+  const handleConnectGoogleDrive = async () => {
+    const clientId = googleApiKey || clientIdInput;
+    if (!clientId) {
+      setShowClientIdInput(true);
+      return;
+    }
+    
+    const success = await connect(clientId);
+    if (success) {
+      setShowClientIdInput(false);
+      setClientIdInput('');
+    }
+  };
+  
+  const handleDisconnect = async () => {
+    await disconnect();
+    setShowDisconnectConfirm(false);
+  };
+  
+  const handleSyncNow = async () => {
+    await syncNow();
+  };
+  
+  const handleRestoreFromCloud = async () => {
+    setShowRestoreConfirm(false);
+    await restoreFromCloud();
+  };
+  
+  const handleSyncToggle = async (enabled: boolean) => {
+    await updateSettings({ enabled });
+    if (enabled && cloudSettings?.syncIntervalMinutes) {
+      toast({
+        title: "Cloud Sync Enabled",
+        description: `Your data will sync every ${cloudSettings.syncIntervalMinutes} minutes.`,
+      });
+    }
+  };
+  
+  const handleIntervalChange = async (value: string) => {
+    await updateSettings({ syncIntervalMinutes: parseInt(value) });
+  };
+  
+  const handleAutoSyncToggle = async (enabled: boolean) => {
+    await updateSettings({ autoSyncOnChange: enabled });
+  };
 
   const isWeb = Capacitor.getPlatform() === 'web';
+  
+  const getSyncStatusIcon = () => {
+    if (syncStatus === 'syncing') {
+      return <RefreshCw className="h-4 w-4 animate-spin text-primary" />;
+    }
+    if (syncStatus === 'error') {
+      return <AlertTriangle className="h-4 w-4 text-destructive" />;
+    }
+    if (syncStatus === 'success') {
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    }
+    return <Cloud className="h-4 w-4 text-muted-foreground" />;
+  };
+  
+  const getSyncStatusText = () => {
+    if (syncStatus === 'syncing') return 'Syncing...';
+    if (syncStatus === 'error') return 'Sync failed';
+    if (lastSyncDate) {
+      return `Last synced: ${formatDate(lastSyncDate)}`;
+    }
+    return 'Not synced yet';
+  };
 
   return (
     <div className="space-y-6">
@@ -119,7 +233,203 @@ export function BackupView({ onBack }: BackupViewProps) {
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-2xl font-bold">Backup & Restore</h2>
+        <h2 className="text-2xl font-bold">Backup & Sync</h2>
+      </div>
+      
+      {/* Cloud Sync Section */}
+      <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-primary/10 p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Cloud className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold text-lg">Cloud Sync</h3>
+        </div>
+        
+        {!isConnected ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Connect to Google Drive to automatically backup your data and sync across devices.
+            </p>
+            
+            {showClientIdInput && !googleApiKey && (
+              <div className="space-y-2">
+                <Label htmlFor="client-id">Google OAuth Client ID</Label>
+                <Input
+                  id="client-id"
+                  placeholder="Enter your Google OAuth Client ID"
+                  value={clientIdInput}
+                  onChange={(e) => setClientIdInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Create one at{' '}
+                  <a 
+                    href="https://console.cloud.google.com/apis/credentials" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  >
+                    Google Cloud Console
+                  </a>
+                </p>
+              </div>
+            )}
+            
+            <Button 
+              onClick={handleConnectGoogleDrive}
+              disabled={cloudLoading || (showClientIdInput && !clientIdInput && !googleApiKey)}
+              className="w-full"
+            >
+              {cloudLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Link className="mr-2 h-4 w-4" />
+                  Connect Google Drive
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Connected Status */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="text-sm">
+                  Connected as <span className="font-medium">{userEmail}</span>
+                </span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowDisconnectConfirm(true)}
+              >
+                <Unlink className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Enable Sync Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="cloud-sync">Enable Cloud Sync</Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically backup to Google Drive
+                </p>
+              </div>
+              <Switch
+                id="cloud-sync"
+                checked={cloudSettings?.enabled || false}
+                onCheckedChange={handleSyncToggle}
+              />
+            </div>
+            
+            {cloudSettings?.enabled && (
+              <>
+                {/* Sync Interval */}
+                <div className="space-y-2">
+                  <Label>Sync Interval</Label>
+                  <Select 
+                    value={String(cloudSettings.syncIntervalMinutes || 30)}
+                    onValueChange={handleIntervalChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SYNC_INTERVALS.map(interval => (
+                        <SelectItem key={interval.value} value={String(interval.value)}>
+                          {interval.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Auto Sync on Change */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="auto-sync-change">Sync on Data Change</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Sync automatically when you make changes
+                    </p>
+                  </div>
+                  <Switch
+                    id="auto-sync-change"
+                    checked={cloudSettings.autoSyncOnChange || false}
+                    onCheckedChange={handleAutoSyncToggle}
+                  />
+                </div>
+                
+                {/* Sync Status */}
+                <div className="flex items-center gap-2 text-sm">
+                  {getSyncStatusIcon()}
+                  <span className="text-muted-foreground">{getSyncStatusText()}</span>
+                </div>
+                
+                {lastError && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{lastError}</AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+            
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={handleSyncNow}
+                disabled={syncStatus === 'syncing' || !cloudSettings?.enabled}
+                variant="secondary"
+              >
+                {syncStatus === 'syncing' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Sync Now
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={() => setShowRestoreConfirm(true)}
+                disabled={syncStatus === 'syncing'}
+                variant="outline"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Restore
+              </Button>
+            </div>
+            
+            {/* Cloud Backups List */}
+            {cloudBackups.length > 0 && (
+              <div className="space-y-2">
+                <Label>Cloud Backups ({cloudBackups.length})</Label>
+                <ScrollArea className="h-[120px] rounded-md border bg-background">
+                  <div className="p-2 space-y-1">
+                    {cloudBackups.slice(0, 5).map((backup) => (
+                      <div
+                        key={backup.id}
+                        className="flex items-center gap-2 p-2 rounded text-sm bg-muted/50"
+                      >
+                        <Cloud className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1 truncate">{backup.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(backup.createdTime).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Auto-Backup Toggle */}
@@ -128,7 +438,7 @@ export function BackupView({ onBack }: BackupViewProps) {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label htmlFor="auto-backup" className="text-base font-semibold">
-                Daily Auto-Backup
+                Daily Auto-Backup (Local)
               </Label>
               <p className="text-sm text-muted-foreground">
                 Automatically backup every 24 hours and keep for one week
@@ -248,7 +558,7 @@ export function BackupView({ onBack }: BackupViewProps) {
       {!isWeb && (
         <div className="space-y-4 border-t pt-4">
           <div className="flex items-center justify-between">
-            <Label>Recent Backups in Documents</Label>
+            <Label>Recent Local Backups</Label>
             <Button variant="outline" size="sm" onClick={loadBackups} disabled={loadingBackups}>
               {loadingBackups ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -289,6 +599,44 @@ export function BackupView({ onBack }: BackupViewProps) {
           </p>
         </div>
       )}
+      
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={showRestoreConfirm} onOpenChange={setShowRestoreConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore from Cloud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace all your current data with the latest backup from Google Drive. 
+              This action cannot be undone. The app will reload after restore.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreFromCloud}>
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Disconnect Confirmation Dialog */}
+      <AlertDialog open={showDisconnectConfirm} onOpenChange={setShowDisconnectConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Google Drive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cloud sync will be disabled. Your data will remain on your device and in Google Drive, 
+              but automatic syncing will stop.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDisconnect}>
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

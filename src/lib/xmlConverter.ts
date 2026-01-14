@@ -135,6 +135,149 @@ export const downloadXML = (xmlString: string, filename: string): void => {
   URL.revokeObjectURL(url);
 };
 
+// Parse XML from string
+export const parseXMLString = (xmlText: string): DatabaseExport => {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+  // Check for parsing errors
+  const parserError = xmlDoc.querySelector('parsererror');
+  if (parserError) {
+    throw new Error('Invalid XML format');
+  }
+
+  const root = xmlDoc.documentElement;
+  if (root.tagName !== 'AutoTimeData') {
+    throw new Error('Invalid AutoTime backup file');
+  }
+
+  const data: DatabaseExport = {
+    clients: [],
+    vehicles: [],
+    tasks: [],
+    settings: { defaultHourlyRate: 75 },
+    exportDate: root.getAttribute('exportDate') || new Date().toISOString(),
+    version: root.getAttribute('version') || '1.0',
+  };
+
+  // Parse Clients
+  const clientsNode = root.querySelector('Clients');
+  if (clientsNode) {
+    clientsNode.querySelectorAll('Client').forEach(node => {
+      data.clients.push({
+        id: node.getAttribute('id') || '',
+        name: node.getAttribute('name') || '',
+        email: node.getAttribute('email') || undefined,
+        phone: node.getAttribute('phone') || undefined,
+        hourlyRate: node.getAttribute('hourlyRate') ? parseFloat(node.getAttribute('hourlyRate')!) : undefined,
+        createdAt: new Date(node.getAttribute('createdAt') || ''),
+      });
+    });
+  }
+
+  // Parse Vehicles
+  const vehiclesNode = root.querySelector('Vehicles');
+  if (vehiclesNode) {
+    vehiclesNode.querySelectorAll('Vehicle').forEach(node => {
+      data.vehicles.push({
+        id: node.getAttribute('id') || '',
+        clientId: node.getAttribute('clientId') || '',
+        vin: node.getAttribute('vin') || '',
+        make: node.getAttribute('make') || undefined,
+        model: node.getAttribute('model') || undefined,
+        year: node.getAttribute('year') ? parseInt(node.getAttribute('year')!) : undefined,
+        color: node.getAttribute('color') || undefined,
+      });
+    });
+  }
+
+  // Parse Tasks
+  const tasksNode = root.querySelector('Tasks');
+  if (tasksNode) {
+    tasksNode.querySelectorAll('Task').forEach(taskNode => {
+      const task: any = {
+        id: taskNode.getAttribute('id') || '',
+        clientId: taskNode.getAttribute('clientId') || '',
+        vehicleId: taskNode.getAttribute('vehicleId') || '',
+        customerName: taskNode.getAttribute('customerName') || '',
+        carVin: taskNode.getAttribute('carVin') || '',
+        status: taskNode.getAttribute('status') || 'pending',
+        totalTime: parseInt(taskNode.getAttribute('totalTime') || '0'),
+        needsFollowUp: taskNode.getAttribute('needsFollowUp') === 'true',
+        createdAt: new Date(taskNode.getAttribute('createdAt') || ''),
+        sessions: [],
+      };
+
+      if (taskNode.getAttribute('startTime')) {
+        task.startTime = new Date(taskNode.getAttribute('startTime')!);
+      }
+      if (taskNode.getAttribute('activeSessionId')) {
+        task.activeSessionId = taskNode.getAttribute('activeSessionId')!;
+      }
+
+      // Parse Sessions
+      const sessionsNode = taskNode.querySelector('Sessions');
+      if (sessionsNode) {
+        sessionsNode.querySelectorAll('Session').forEach(sessionNode => {
+          const session: any = {
+            id: sessionNode.getAttribute('id') || '',
+            createdAt: new Date(sessionNode.getAttribute('createdAt') || ''),
+            periods: [],
+            parts: [],
+          };
+
+          if (sessionNode.getAttribute('completedAt')) {
+            session.completedAt = new Date(sessionNode.getAttribute('completedAt')!);
+          }
+          if (sessionNode.getAttribute('description')) {
+            session.description = sessionNode.getAttribute('description')!;
+          }
+
+          // Parse Periods
+          const periodsNode = sessionNode.querySelector('Periods');
+          if (periodsNode) {
+            periodsNode.querySelectorAll('Period').forEach(periodNode => {
+              session.periods.push({
+                id: periodNode.getAttribute('id') || '',
+                startTime: new Date(periodNode.getAttribute('startTime') || ''),
+                endTime: new Date(periodNode.getAttribute('endTime') || ''),
+                duration: parseInt(periodNode.getAttribute('duration') || '0'),
+              });
+            });
+          }
+
+          // Parse Parts
+          const partsNode = sessionNode.querySelector('Parts');
+          if (partsNode) {
+            partsNode.querySelectorAll('Part').forEach(partNode => {
+              session.parts.push({
+                name: partNode.getAttribute('name') || '',
+                quantity: parseFloat(partNode.getAttribute('quantity') || '1'),
+                price: parseFloat(partNode.getAttribute('price') || '0'),
+                description: partNode.getAttribute('description') || undefined,
+              });
+            });
+          }
+
+          task.sessions.push(session);
+        });
+      }
+
+      data.tasks.push(task);
+    });
+  }
+
+  // Parse Settings
+  const settingsNode = root.querySelector('Settings');
+  if (settingsNode) {
+    data.settings = {
+      defaultHourlyRate: parseFloat(settingsNode.getAttribute('defaultHourlyRate') || '75'),
+    };
+  }
+
+  return data;
+};
+
 export const parseXMLFile = (file: File): Promise<DatabaseExport> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -142,144 +285,7 @@ export const parseXMLFile = (file: File): Promise<DatabaseExport> => {
     reader.onload = (e) => {
       try {
         const xmlText = e.target?.result as string;
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-
-        // Check for parsing errors
-        const parserError = xmlDoc.querySelector('parsererror');
-        if (parserError) {
-          throw new Error('Invalid XML format');
-        }
-
-        const root = xmlDoc.documentElement;
-        if (root.tagName !== 'AutoTimeData') {
-          throw new Error('Invalid AutoTime backup file');
-        }
-
-        const data: DatabaseExport = {
-          clients: [],
-          vehicles: [],
-          tasks: [],
-          settings: { defaultHourlyRate: 75 },
-          exportDate: root.getAttribute('exportDate') || new Date().toISOString(),
-          version: root.getAttribute('version') || '1.0',
-        };
-
-        // Parse Clients
-        const clientsNode = root.querySelector('Clients');
-        if (clientsNode) {
-          clientsNode.querySelectorAll('Client').forEach(node => {
-            data.clients.push({
-              id: node.getAttribute('id') || '',
-              name: node.getAttribute('name') || '',
-              email: node.getAttribute('email') || undefined,
-              phone: node.getAttribute('phone') || undefined,
-              hourlyRate: node.getAttribute('hourlyRate') ? parseFloat(node.getAttribute('hourlyRate')!) : undefined,
-              createdAt: new Date(node.getAttribute('createdAt') || ''),
-            });
-          });
-        }
-
-        // Parse Vehicles
-        const vehiclesNode = root.querySelector('Vehicles');
-        if (vehiclesNode) {
-          vehiclesNode.querySelectorAll('Vehicle').forEach(node => {
-            data.vehicles.push({
-              id: node.getAttribute('id') || '',
-              clientId: node.getAttribute('clientId') || '',
-              vin: node.getAttribute('vin') || '',
-              make: node.getAttribute('make') || undefined,
-              model: node.getAttribute('model') || undefined,
-              year: node.getAttribute('year') ? parseInt(node.getAttribute('year')!) : undefined,
-              color: node.getAttribute('color') || undefined,
-            });
-          });
-        }
-
-        // Parse Tasks
-        const tasksNode = root.querySelector('Tasks');
-        if (tasksNode) {
-          tasksNode.querySelectorAll('Task').forEach(taskNode => {
-            const task: any = {
-              id: taskNode.getAttribute('id') || '',
-              clientId: taskNode.getAttribute('clientId') || '',
-              vehicleId: taskNode.getAttribute('vehicleId') || '',
-              customerName: taskNode.getAttribute('customerName') || '',
-              carVin: taskNode.getAttribute('carVin') || '',
-              status: taskNode.getAttribute('status') || 'pending',
-              totalTime: parseInt(taskNode.getAttribute('totalTime') || '0'),
-              needsFollowUp: taskNode.getAttribute('needsFollowUp') === 'true',
-              createdAt: new Date(taskNode.getAttribute('createdAt') || ''),
-              sessions: [],
-            };
-
-            if (taskNode.getAttribute('startTime')) {
-              task.startTime = new Date(taskNode.getAttribute('startTime')!);
-            }
-            if (taskNode.getAttribute('activeSessionId')) {
-              task.activeSessionId = taskNode.getAttribute('activeSessionId')!;
-            }
-
-            // Parse Sessions
-            const sessionsNode = taskNode.querySelector('Sessions');
-            if (sessionsNode) {
-              sessionsNode.querySelectorAll('Session').forEach(sessionNode => {
-                const session: any = {
-                  id: sessionNode.getAttribute('id') || '',
-                  createdAt: new Date(sessionNode.getAttribute('createdAt') || ''),
-                  periods: [],
-                  parts: [],
-                };
-
-                if (sessionNode.getAttribute('completedAt')) {
-                  session.completedAt = new Date(sessionNode.getAttribute('completedAt')!);
-                }
-                if (sessionNode.getAttribute('description')) {
-                  session.description = sessionNode.getAttribute('description')!;
-                }
-
-                // Parse Periods
-                const periodsNode = sessionNode.querySelector('Periods');
-                if (periodsNode) {
-                  periodsNode.querySelectorAll('Period').forEach(periodNode => {
-                    session.periods.push({
-                      id: periodNode.getAttribute('id') || '',
-                      startTime: new Date(periodNode.getAttribute('startTime') || ''),
-                      endTime: new Date(periodNode.getAttribute('endTime') || ''),
-                      duration: parseInt(periodNode.getAttribute('duration') || '0'),
-                    });
-                  });
-                }
-
-                // Parse Parts
-                const partsNode = sessionNode.querySelector('Parts');
-                if (partsNode) {
-                  partsNode.querySelectorAll('Part').forEach(partNode => {
-                    session.parts.push({
-                      name: partNode.getAttribute('name') || '',
-                      quantity: parseFloat(partNode.getAttribute('quantity') || '1'),
-                      price: parseFloat(partNode.getAttribute('price') || '0'),
-                      description: partNode.getAttribute('description') || undefined,
-                    });
-                  });
-                }
-
-                task.sessions.push(session);
-              });
-            }
-
-            data.tasks.push(task);
-          });
-        }
-
-        // Parse Settings
-        const settingsNode = root.querySelector('Settings');
-        if (settingsNode) {
-          data.settings = {
-            defaultHourlyRate: parseFloat(settingsNode.getAttribute('defaultHourlyRate') || '75'),
-          };
-        }
-
+        const data = parseXMLString(xmlText);
         resolve(data);
       } catch (error) {
         reject(error);

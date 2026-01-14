@@ -63,6 +63,19 @@ export interface BackupSettings {
   lastBackupStatus?: 'success' | 'failed';
 }
 
+export interface CloudSyncSettings {
+  enabled: boolean;
+  provider: 'google-drive' | 'none';
+  syncIntervalMinutes: number; // 5, 15, 30, 60
+  lastSyncDate?: string;
+  lastSyncStatus?: 'success' | 'failed' | 'syncing';
+  autoSyncOnChange: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiry?: string;
+  userEmail?: string;
+}
+
 export interface Settings {
   defaultHourlyRate: number;
   googleApiKey?: string;
@@ -70,4 +83,5 @@ export interface Settings {
   ocrSpaceApiKey?: string;
   ocrProvider?: 'gemini' | 'grok' | 'ocrspace' | 'tesseract';
   backup?: BackupSettings;
+  cloudSync?: CloudSyncSettings;
 }

@@ -8,11 +8,13 @@ import { AddVehicleDialog } from '@/components/AddVehicleDialog';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { CompleteWorkDialog } from '@/components/CompleteWorkDialog';
 import { SettingsDialog } from '@/components/SettingsDialog';
+import { CloudSyncIndicator } from '@/components/CloudSyncIndicator';
 import { useClients, useVehicles, useTasks, useSettings } from '@/hooks/useStorage';
 import { Task, WorkSession, WorkPeriod, Part, Client, Vehicle } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { migrateToCapacitorStorage } from '@/lib/storageMigration';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
+
 
 
 const Index = () => {
@@ -533,6 +535,7 @@ const Index = () => {
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-base font-bold text-primary">Auto Task Tracker</h1>
           <div className="flex items-center gap-2">
+            <CloudSyncIndicator onClick={() => setShowSettings(true)} />
             <Button variant="default" size="icon" onClick={() => setShowAddVehicle(true)} className="h-8 w-8">
               <Plus className="h-4 w-4" />
             </Button>
