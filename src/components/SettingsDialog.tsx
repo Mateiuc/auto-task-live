@@ -407,6 +407,23 @@ export const SettingsDialog = ({
                   </p>
                 </div>
               )}
+
+              {(ocrProvider === 'gemini' || ocrProvider === 'grok' || ocrProvider === 'ocrspace') && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+                    ⚠️ Security Notice
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    API keys are stored locally on your device. To protect your keys:
+                  </p>
+                  <ul className="text-xs text-amber-600 dark:text-amber-400 mt-1 list-disc list-inside space-y-0.5">
+                    <li>Restrict keys by HTTP referrer/domain in provider settings</li>
+                    <li>Use keys with limited quotas or spending limits</li>
+                    <li>Avoid installing untrusted browser extensions</li>
+                    <li>Consider using Tesseract.js for fully offline scanning</li>
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
