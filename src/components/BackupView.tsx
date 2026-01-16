@@ -5,7 +5,7 @@ import { Switch } from './ui/switch';
 import { backupManager } from '@/lib/backupManager';
 import { useBackupSettings } from '@/hooks/useBackupSettings';
 import { useCloudSync } from '@/hooks/useCloudSync';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { 
   Loader2, Upload, Download, FileText, Calendar, ArrowLeft, 
   AlertTriangle, CheckCircle2, Cloud, CloudOff, RefreshCw,
@@ -35,7 +35,7 @@ interface BackupViewProps {
 
 export function BackupView({ onBack, googleApiKey }: BackupViewProps) {
   const { backupSettings, setBackupSettings } = useBackupSettings();
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [backups, setBackups] = useState<Array<{ name: string; created: Date }>>([]);

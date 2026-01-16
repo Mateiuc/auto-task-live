@@ -3,7 +3,7 @@ import { cloudSyncService, CloudSyncState, SyncStatus } from '@/services/cloudSy
 import { googleDriveService, GoogleDriveFile } from '@/services/googleDriveService';
 import { capacitorStorage } from '@/lib/capacitorStorage';
 import { CloudSyncSettings } from '@/types';
-import { useToast } from './use-toast';
+import { useNotifications } from './useNotifications';
 
 export interface UseCloudSyncResult {
   // State
@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: CloudSyncSettings = {
 };
 
 export function useCloudSync(): UseCloudSyncResult {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [state, setState] = useState<CloudSyncState>({
     status: 'idle',
     isConnected: false,

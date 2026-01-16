@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Plus } from 'lucide-react';
 import { formatDuration, formatCurrency, formatTime, formatTimeForInput } from '@/lib/formatTime';
 import { useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
@@ -24,6 +24,7 @@ export const EditTaskDialog = ({
   task,
   onSave
 }: EditTaskDialogProps) => {
+  const { toast } = useNotifications();
   // Get vehicle color scheme
   const colorScheme = getVehicleColorScheme(task.vehicleId);
   // Ensure all dates are properly converted to Date objects with fallbacks

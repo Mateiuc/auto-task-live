@@ -7,7 +7,7 @@ import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/gemi
 import { readVinWithGrok, type OcrResult as GrokOcrResult } from '@/lib/grokVinOcr';
 import { readVinWithOcrSpace, type OcrResult as OcrSpaceOcrResult } from '@/lib/ocrSpaceVinOcr';
 import { readVinWithTesseract, type OcrResult as TesseractOcrResult } from '@/lib/tesseractVinOcr';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { Capacitor } from '@capacitor/core';
 
@@ -43,7 +43,7 @@ const VinScanner: React.FC<VinScannerProps> = ({
     heightPx: 128 
   });
   const [scanColor, setScanColor] = useState(0);
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const warnedNoKeyRef = useRef(false);
   
   // Debug state

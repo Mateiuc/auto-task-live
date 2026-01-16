@@ -84,4 +84,5 @@ export interface Settings {
   ocrProvider?: 'gemini' | 'grok' | 'ocrspace' | 'tesseract';
   backup?: BackupSettings;
   cloudSync?: CloudSyncSettings;
+  notificationsEnabled?: boolean; // default true - controls popup notifications
 }

@@ -11,7 +11,7 @@ import { SettingsDialog } from '@/components/SettingsDialog';
 import { CloudSyncIndicator } from '@/components/CloudSyncIndicator';
 import { useClients, useVehicles, useTasks, useSettings } from '@/hooks/useStorage';
 import { Task, WorkSession, WorkPeriod, Part, Client, Vehicle } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { migrateToCapacitorStorage } from '@/lib/storageMigration';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
 
@@ -22,7 +22,7 @@ const Index = () => {
   const { vehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
   const { tasks, addTask, updateTask, deleteTask, batchUpdateTasks } = useTasks();
   const { settings, setSettings } = useSettings();
-  const { toast } = useToast();
+  const { toast } = useNotifications();
 
   // Perform one-time migration from IndexedDB to Capacitor Preferences
   useEffect(() => {
