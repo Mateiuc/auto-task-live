@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Vehicle, Client, Settings } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { decodeVin } from '@/lib/vinDecoder';
 import VinScanner from './VinScanner';
 import { ChevronLeft } from 'lucide-react';
@@ -28,7 +28,7 @@ export const EditVehicleDialog = ({
   settings,
   onSave,
 }: EditVehicleDialogProps) => {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [vin, setVin] = useState(vehicle.vin);
   const [make, setMake] = useState(vehicle.make || '');
   const [model, setModel] = useState(vehicle.model || '');

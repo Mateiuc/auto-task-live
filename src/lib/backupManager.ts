@@ -1,11 +1,20 @@
 import { capacitorStorage } from './capacitorStorage';
 import { exportToXML, parseXMLFile } from './xmlConverter';
-import { toast } from '@/hooks/use-toast';
+import { toast as baseToast } from '@/hooks/use-toast';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
 import { LocalNotifications } from '@capacitor/local-notifications';
+
+// Wrapper that respects notification settings
+const toast = async (options: Parameters<typeof baseToast>[0]) => {
+  const settings = await capacitorStorage.getSettings();
+  if (settings?.notificationsEnabled !== false) {
+    return baseToast(options);
+  }
+  return { id: '', dismiss: () => {}, update: () => {} };
+};
 
 export class BackupManager {
   async createBackup(): Promise<string> {

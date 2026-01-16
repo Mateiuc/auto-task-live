@@ -10,7 +10,8 @@ import { ChevronLeft, ChevronRight, Download, Upload, Cloud } from 'lucide-react
 import { TaskCard } from './TaskCard';
 import { indexedDB } from '@/lib/indexedDB';
 import { exportToXML, downloadXML, parseXMLFile, validateXMLData } from '@/lib/xmlConverter';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
+import { Switch } from '@/components/ui/switch';
 import { ManageClientsDialog } from './ManageClientsDialog';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
 import { BackupView } from './BackupView';
@@ -61,7 +62,7 @@ export const SettingsDialog = ({
   const [hourlyRate, setHourlyRate] = useState(settings.defaultHourlyRate.toString());
   const [showManageClients, setShowManageClients] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const { toast } = useNotifications();
 
   useEffect(() => {
     setHourlyRate(settings.defaultHourlyRate.toString());
@@ -77,13 +78,15 @@ export const SettingsDialog = ({
   const [grokApiKey, setGrokApiKey] = useState(settings.grokApiKey || '');
   const [ocrSpaceApiKey, setOcrSpaceApiKey] = useState(settings.ocrSpaceApiKey || '');
   const [ocrProvider, setOcrProvider] = useState<'gemini' | 'grok' | 'ocrspace' | 'tesseract'>(settings.ocrProvider || 'gemini');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notificationsEnabled !== false);
 
   useEffect(() => {
     setGoogleApiKey(settings.googleApiKey || '');
     setGrokApiKey(settings.grokApiKey || '');
     setOcrSpaceApiKey(settings.ocrSpaceApiKey || '');
     setOcrProvider(settings.ocrProvider || 'gemini');
-  }, [settings.googleApiKey, settings.grokApiKey, settings.ocrSpaceApiKey, settings.ocrProvider]);
+    setNotificationsEnabled(settings.notificationsEnabled !== false);
+  }, [settings.googleApiKey, settings.grokApiKey, settings.ocrSpaceApiKey, settings.ocrProvider, settings.notificationsEnabled]);
 
   const handleSaveSettings = () => {
     onSave({
@@ -93,6 +96,7 @@ export const SettingsDialog = ({
       ocrSpaceApiKey: ocrSpaceApiKey.trim() || undefined,
       ocrProvider,
       backup: settings.backup,
+      notificationsEnabled,
     });
     setCurrentView('menu');
   };
@@ -301,6 +305,19 @@ export const SettingsDialog = ({
                 <p className="text-xs text-muted-foreground">
                   This rate will be used unless a custom rate is set for a specific client
                 </p>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="space-y-0.5">
+                  <Label>Show Popup Notifications</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When disabled, confirmation and status messages won't appear
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationsEnabled}
+                  onCheckedChange={setNotificationsEnabled}
+                />
               </div>
 
               <div className="space-y-2">

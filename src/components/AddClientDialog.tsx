@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Client } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface AddClientDialogProps {
   open: boolean;
@@ -17,7 +17,7 @@ export const AddClientDialog = ({ open, onOpenChange, onSave }: AddClientDialogP
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
-  const { toast } = useToast();
+  const { toast } = useNotifications();
 
   const handleSave = () => {
     if (!name.trim()) {

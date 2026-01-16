@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreV
 import { formatDuration, formatCurrency, formatTime } from '@/lib/formatTime';
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import { toast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { EditTaskDialog } from './EditTaskDialog';
 import { getVehicleColorScheme, VehicleColorScheme } from '@/lib/vehicleColors';
 import billBackground from '@/assets/bill-background.jpg';
@@ -43,6 +43,7 @@ export const TaskCard = ({
   onDelete,
   vehicleColorScheme
 }: TaskCardProps) => {
+  const { toast } = useNotifications();
   // Get vehicle color scheme (use provided or compute from vehicle ID)
   const colorScheme = vehicleColorScheme || getVehicleColorScheme(vehicle?.id || task.vehicleId);
   const [isExpanded, setIsExpanded] = useState(false);

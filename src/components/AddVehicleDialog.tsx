@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Scan } from 'lucide-react';
 import { Client, Vehicle, Task, Settings } from '@/types';
 import { decodeVin, validateVin } from '@/lib/vinDecoder';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ContactCombobox } from './ContactCombobox';
 import { PhoneContact } from '@/services/contactsService';
 import VinScanner from './VinScanner';
@@ -41,7 +41,7 @@ export const AddVehicleDialog = ({
   const [showVinScanner, setShowVinScanner] = useState(false);
   const {
     toast
-  } = useToast();
+  } = useNotifications();
 
   const handleContactSelect = (contact: PhoneContact) => {
     // Store contact data and trigger client creation

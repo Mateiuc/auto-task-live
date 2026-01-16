@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { contactsService, PhoneContact } from '@/services/contactsService';
 import { Client } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface ContactComboboxProps {
   value: string;
@@ -35,7 +35,7 @@ export const ContactCombobox = ({
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  const { toast } = useNotifications();
 
   useEffect(() => {
     loadContacts();

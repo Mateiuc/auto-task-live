@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Client, Vehicle, Task, Settings } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ChevronLeft, Mail, Phone, DollarSign, Edit, Trash2, Save, X, Car, Printer, Play } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { EditVehicleDialog } from './EditVehicleDialog';
@@ -40,7 +40,7 @@ export const ManageClientsDialog = ({
   onDeleteVehicle,
   onStartWork,
 }: ManageClientsDialogProps) => {
-  const { toast } = useToast();
+  const { toast } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Client>>({});
