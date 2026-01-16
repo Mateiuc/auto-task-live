@@ -8,6 +8,8 @@ import { readVinWithGrok, type OcrResult as GrokOcrResult } from '@/lib/grokVinO
 import { readVinWithOcrSpace, type OcrResult as OcrSpaceOcrResult } from '@/lib/ocrSpaceVinOcr';
 import { readVinWithTesseract, type OcrResult as TesseractOcrResult } from '@/lib/tesseractVinOcr';
 import { useToast } from '@/hooks/use-toast';
+import { ScreenOrientation } from '@capacitor/screen-orientation';
+import { Capacitor } from '@capacitor/core';
 
 type OcrResult = GeminiOcrResult | GrokOcrResult | OcrSpaceOcrResult | TesseractOcrResult;
 
@@ -65,10 +67,28 @@ const VinScanner: React.FC<VinScannerProps> = ({
   ];
 
   useEffect(() => {
+    // Lock orientation to portrait on native platforms
+    const lockOrientation = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await ScreenOrientation.lock({ orientation: 'portrait' });
+        } catch (error) {
+          console.warn('Failed to lock orientation:', error);
+        }
+      }
+    };
+    
+    lockOrientation();
     startCamera();
+    
     return () => {
       scanningRef.current = false;
       stopCamera();
+      
+      // Unlock orientation when scanner closes
+      if (Capacitor.isNativePlatform()) {
+        ScreenOrientation.unlock().catch(console.warn);
+      }
     };
   }, []);
 
