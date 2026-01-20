@@ -25,7 +25,7 @@ export class BackupManager {
   async exportBackup(): Promise<void> {
     try {
       const xmlContent = await this.createBackup();
-      const fileName = `autotime-backup-${new Date().toISOString().split('T')[0]}-${Date.now()}.xml`;
+      const fileName = `autotime_backup_${new Date().toISOString().split('T')[0].replace(/-/g, '')}_${Date.now()}.xml`;
 
       if (Capacitor.getPlatform() === 'web') {
         // Web: Download file
@@ -196,10 +196,17 @@ export class BackupManager {
       });
 
       const backupFiles = result.files
-        .filter(file => file.name.startsWith('autotime-backup-') && file.name.endsWith('.xml'))
+        .filter(file => 
+          (file.name.startsWith('autotime_backup_') || file.name.startsWith('autotime-backup-')) && 
+          file.name.endsWith('.xml')
+        )
         .map(file => ({
           name: file.name,
-          created: new Date(parseInt(file.name.split('-').pop()?.replace('.xml', '') || '0'))
+          // Handle both new format (underscores) and old format (hyphens)
+          created: new Date(parseInt(
+            file.name.split('_').pop()?.replace('.xml', '') || 
+            file.name.split('-').pop()?.replace('.xml', '') || '0'
+          ))
         }))
         .sort((a, b) => b.created.getTime() - a.created.getTime());
 
@@ -241,7 +248,7 @@ export class BackupManager {
   async createAutoBackup(): Promise<void> {
     try {
       const xmlContent = await this.createBackup();
-      const fileName = `autotime-backup-${new Date().toISOString().split('T')[0]}-${Date.now()}.xml`;
+      const fileName = `autotime_backup_${new Date().toISOString().split('T')[0].replace(/-/g, '')}_${Date.now()}.xml`;
 
       if (Capacitor.getPlatform() !== 'web') {
         await Filesystem.writeFile({
