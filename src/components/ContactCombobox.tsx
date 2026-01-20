@@ -59,14 +59,22 @@ export const ContactCombobox = ({
   }, []);
 
   const loadContacts = async () => {
+    console.log('[ContactCombobox] Starting to load phone contacts...');
     setIsLoading(true);
     try {
       const phoneContacts = await contactsService.getAllContacts();
+      console.log(`[ContactCombobox] Loaded ${phoneContacts.length} phone contacts`);
+      
+      if (phoneContacts.length === 0) {
+        console.log('[ContactCombobox] No contacts returned - check permissions in AndroidManifest.xml');
+      }
+      
       setContacts(phoneContacts);
     } catch (error) {
+      console.error('[ContactCombobox] Failed to load contacts:', error);
       toast({
         title: 'Contact Access Error',
-        description: 'Could not load contacts. Please grant permission.',
+        description: 'Could not load contacts. Please grant permission in device Settings.',
         variant: 'destructive',
       });
     } finally {

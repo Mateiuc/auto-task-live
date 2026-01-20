@@ -113,6 +113,55 @@ This command:
 
 **Note:** If you see an error about the android folder already existing, you can skip this step.
 
+### Step 7b: Add Required Permissions to AndroidManifest.xml
+
+**IMPORTANT:** After adding the Android platform, you must manually add permissions to enable contacts, camera, storage, and notifications.
+
+1. Open `android/app/src/main/AndroidManifest.xml`
+2. Add these permissions **inside** the `<manifest>` tag, **before** the `<application>` tag:
+
+```xml
+<!-- Contacts permissions (required for phone contacts integration) -->
+<uses-permission android:name="android.permission.READ_CONTACTS" />
+<uses-permission android:name="android.permission.WRITE_CONTACTS" />
+
+<!-- Camera permission (required for VIN scanning) -->
+<uses-permission android:name="android.permission.CAMERA" />
+
+<!-- Storage permissions for backup/restore on Android 9 and below -->
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+<!-- Notification permissions -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+<!-- Internet (usually already present) -->
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+**Your AndroidManifest.xml should look like:**
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- All permissions go here -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <application ...>
+        <!-- Application content -->
+    </application>
+</manifest>
+```
+
+**Note:** Without these permissions, the app will fail silently when trying to access contacts, camera, or storage. After adding permissions, you must uninstall the old app and reinstall for changes to take effect.
+
 ### Step 8: Sync Project to Android
 
 ```bash
