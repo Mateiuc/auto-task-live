@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, User, Loader2, X } from 'lucide-react';
+import { Check, User, Loader2, X, Contact } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { contactsService, PhoneContact } from '@/services/contactsService';
 import { Client } from '@/types';
 import { useNotifications } from '@/hooks/useNotifications';
+import { Capacitor } from '@capacitor/core';
 
 interface ContactComboboxProps {
   value: string;
@@ -33,13 +35,27 @@ export const ContactCombobox = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [supportsContactPicker, setSupportsContactPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { toast } = useNotifications();
 
+  // Check if we're on native platform or if Contact Picker API is available
+  const isNativePlatform = Capacitor.isNativePlatform();
+
   useEffect(() => {
-    loadContacts();
-  }, []);
+    // Check Contact Picker API support for PWA
+    if (!isNativePlatform) {
+      const supported = contactsService.isContactPickerSupported();
+      console.log('[ContactCombobox] Contact Picker API supported:', supported);
+      setSupportsContactPicker(supported);
+    }
+    
+    // Only load all contacts on native platform
+    if (isNativePlatform) {
+      loadContacts();
+    }
+  }, [isNativePlatform]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,10 +140,43 @@ export const ContactCombobox = ({
     inputRef.current?.focus();
   };
 
+  // Handle picking contact via browser Contact Picker API (PWA)
+  const handlePickContact = async () => {
+    console.log('[ContactCombobox] Opening contact picker...');
+    try {
+      const contact = await contactsService.pickContact();
+      if (contact) {
+        console.log('[ContactCombobox] Contact picked:', contact.name);
+        handleContactSelect(contact);
+      }
+    } catch (error) {
+      console.error('[ContactCombobox] Error picking contact:', error);
+      toast({
+        title: 'Contact Picker Error',
+        description: 'Could not open contact picker. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const showDropdown = (isFocused || open) && (searchQuery.length > 0 || isLoading);
 
   return (
     <div className="relative w-full">
+      {/* Show Pick Contact button for PWA users when Contact Picker API is available */}
+      {!isNativePlatform && supportsContactPicker && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handlePickContact}
+          className="w-full mb-2"
+        >
+          <Contact className="mr-2 h-4 w-4" />
+          Pick from Contacts
+        </Button>
+      )}
+      
       <div className="relative flex items-center justify-center">
         <Input
           ref={inputRef}
