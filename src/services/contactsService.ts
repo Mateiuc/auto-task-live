@@ -15,6 +15,47 @@ export interface PhoneContact {
 }
 
 export const contactsService = {
+  // Check if browser Contact Picker API is available (for PWA on Chrome Android)
+  isContactPickerSupported(): boolean {
+    return 'contacts' in navigator && 'ContactsManager' in window;
+  },
+
+  // Pick a single contact using browser's Contact Picker API (PWA)
+  async pickContact(): Promise<PhoneContact | null> {
+    if (!this.isContactPickerSupported()) {
+      console.log('[Contacts] Contact Picker API not supported in this browser');
+      return null;
+    }
+
+    try {
+      console.log('[Contacts] Opening browser contact picker...');
+      const props = ['name', 'tel'];
+      const contacts = await navigator.contacts!.select(props, { multiple: false });
+      
+      if (contacts.length > 0) {
+        const contact = contacts[0];
+        console.log('[Contacts] User selected a contact:', contact.name?.[0]);
+        
+        return {
+          id: crypto.randomUUID(),
+          name: contact.name?.[0] || 'Unknown',
+          phoneNumbers: contact.tel?.map((t, index) => ({
+            number: t,
+            type: 'mobile',
+            isPrimary: index === 0,
+          })) || [],
+          emails: [],
+        };
+      }
+      
+      console.log('[Contacts] User cancelled contact picker');
+      return null;
+    } catch (error) {
+      console.error('[Contacts] Error picking contact:', error);
+      return null;
+    }
+  },
+
   async requestPermissions(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) {
       console.log('Not running on native platform');
