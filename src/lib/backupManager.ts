@@ -129,15 +129,26 @@ export class BackupManager {
       } else {
         // Mobile: Use native file picker
         const result = await FilePicker.pickFiles({
-          types: ['text/xml', 'application/xml'],
+          types: [
+            'text/xml',
+            'application/xml',
+            'text/plain',              // Some systems detect .xml as plain text
+            'application/octet-stream' // Common fallback on Android for long filenames
+          ],
           readData: true
         });
 
         if (!result.files || result.files.length === 0) {
-          throw new Error('No file selected');
+          return; // User cancelled - don't show error
         }
 
         const file = result.files[0];
+        
+        // Validate file extension (since MIME type can be unreliable on Android)
+        if (!file.name.toLowerCase().endsWith('.xml')) {
+          throw new Error('Please select an XML backup file (.xml)');
+        }
+        
         if (!file.data) {
           throw new Error('Could not read file data');
         }
