@@ -704,6 +704,10 @@ export const TaskCard = ({
                         <FileText className="h-4 w-4 mr-2" />
                         Generate Bill & Mark Billed
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onRestartTimer(task.id)}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Resume Work
+                      </DropdownMenuItem>
                     </>}
                 {task.status === 'billed' && <>
                     <DropdownMenuItem onClick={generateBillingPDF}>
@@ -873,7 +877,7 @@ export const TaskCard = ({
         </CollapsibleContent>
       </Collapsible>
       
-      <EditTaskDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} task={task} onSave={updatedTask => onUpdateTask?.(updatedTask)} />
+      <EditTaskDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} task={task} onSave={updatedTask => onUpdateTask?.(updatedTask)} onDelete={onDelete} />
       
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="w-[90vw] max-w-sm p-4 rounded-lg">
