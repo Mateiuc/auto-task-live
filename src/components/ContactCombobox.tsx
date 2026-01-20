@@ -35,7 +35,7 @@ export const ContactCombobox = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [supportsContactPicker, setSupportsContactPicker] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { toast } = useNotifications();
@@ -44,13 +44,6 @@ export const ContactCombobox = ({
   const isNativePlatform = Capacitor.isNativePlatform();
 
   useEffect(() => {
-    // Check Contact Picker API support for PWA
-    if (!isNativePlatform) {
-      const supported = contactsService.isContactPickerSupported();
-      console.log('[ContactCombobox] Contact Picker API supported:', supported);
-      setSupportsContactPicker(supported);
-    }
-    
     // Only load all contacts on native platform
     if (isNativePlatform) {
       loadContacts();
@@ -142,15 +135,22 @@ export const ContactCombobox = ({
 
   // Handle picking contact via browser Contact Picker API (PWA)
   const handlePickContact = async () => {
-    console.log('[ContactCombobox] Opening contact picker...');
+    // Check if API is supported when user clicks
+    if (!contactsService.isContactPickerSupported()) {
+      toast({
+        title: 'Not Available',
+        description: 'Please type the client name manually.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const contact = await contactsService.pickContact();
       if (contact) {
-        console.log('[ContactCombobox] Contact picked:', contact.name);
         handleContactSelect(contact);
       }
     } catch (error) {
-      console.error('[ContactCombobox] Error picking contact:', error);
       toast({
         title: 'Contact Picker Error',
         description: 'Could not open contact picker. Please try again.',
@@ -163,8 +163,8 @@ export const ContactCombobox = ({
 
   return (
     <div className="relative w-full">
-      {/* Show Pick Contact button for PWA users when Contact Picker API is available */}
-      {!isNativePlatform && supportsContactPicker && (
+      {/* Show Pick Contact button for PWA users */}
+      {!isNativePlatform && (
         <Button
           type="button"
           variant="default"
