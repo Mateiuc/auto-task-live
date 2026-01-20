@@ -203,9 +203,16 @@ export const ContactCombobox = ({
                           <User className="mr-2 h-4 w-4 text-primary" />
                           <div className="flex flex-col">
                             <span>{contact.name}</span>
-                            {contact.phoneNumbers[0] && (
+                            {contact.phoneNumbers.length > 0 && (
                               <span className="text-xs text-muted-foreground">
-                                {contactsService.formatPhoneNumber(contact.phoneNumbers[0])}
+                                {contactsService.formatPhoneNumber(
+                                  contactsService.getBestPhoneNumber(contact.phoneNumbers) || ''
+                                )}
+                                {contact.phoneNumbers.length > 1 && (
+                                  <span className="ml-1 text-muted-foreground/60">
+                                    (+{contact.phoneNumbers.length - 1} more)
+                                  </span>
+                                )}
                               </span>
                             )}
                           </div>

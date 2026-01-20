@@ -9,7 +9,7 @@ import { Client, Vehicle, Task, Settings } from '@/types';
 import { decodeVin, validateVin } from '@/lib/vinDecoder';
 import { useNotifications } from '@/hooks/useNotifications';
 import { ContactCombobox } from './ContactCombobox';
-import { PhoneContact } from '@/services/contactsService';
+import { PhoneContact, contactsService } from '@/services/contactsService';
 import VinScanner from './VinScanner';
 interface AddVehicleDialogProps {
   open: boolean;
@@ -44,14 +44,18 @@ export const AddVehicleDialog = ({
   } = useNotifications();
 
   const handleContactSelect = (contact: PhoneContact) => {
-    // Store contact data and trigger client creation
+    // Store contact data for auto-creation on save (don't open AddClientDialog)
     setPendingContactData(contact);
+    setPendingClientName(contact.name);
+    
+    // Get the best phone number to display
+    const bestPhone = contactsService.getBestPhoneNumber(contact.phoneNumbers);
+    
     toast({
-      title: 'New Client Selected',
-      description: `${contact.name} will be added as a new client`
+      title: 'Contact Selected',
+      description: `${contact.name}${bestPhone ? ` - ${contactsService.formatPhoneNumber(bestPhone)}` : ''}`
     });
-    // Trigger parent to open AddClientDialog with this contact data
-    onAddClient();
+    // Stay in this dialog - client will be auto-created when vehicle is saved
   };
   const handleDecodeVIN = async (vinCode?: string) => {
     const vinToCheck = vinCode || vin;
