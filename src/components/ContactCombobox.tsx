@@ -167,12 +167,12 @@ export const ContactCombobox = ({
       {!isNativePlatform && supportsContactPicker && (
         <Button
           type="button"
-          variant="outline"
-          size="sm"
+          variant="default"
+          size="default"
           onClick={handlePickContact}
-          className="w-full mb-2"
+          className="w-full mb-3 bg-primary hover:bg-primary/90"
         >
-          <Contact className="mr-2 h-4 w-4" />
+          <Contact className="mr-2 h-5 w-5" />
           Pick from Contacts
         </Button>
       )}
