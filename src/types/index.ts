@@ -24,6 +24,13 @@ export interface Part {
   description?: string;
 }
 
+export interface SessionPhoto {
+  id: string;
+  base64: string;
+  capturedAt: Date;
+  sessionNumber: number;
+}
+
 export interface WorkPeriod {
   id: string;
   startTime: Date;
@@ -38,6 +45,7 @@ export interface WorkSession {
   description?: string;
   periods: WorkPeriod[];
   parts: Part[];
+  photos?: SessionPhoto[];
 }
 
 export type TaskStatus = 'pending' | 'in-progress' | 'paused' | 'completed' | 'billed' | 'paid';
