@@ -14,6 +14,7 @@ import { Task, WorkSession, WorkPeriod, Part, Client, Vehicle } from '@/types';
 import { useNotifications } from '@/hooks/useNotifications';
 import { migrateToCapacitorStorage } from '@/lib/storageMigration';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
+import { contactsService } from '@/services/contactsService';
 
 
 
@@ -408,10 +409,15 @@ const Index = () => {
 
       // Auto-create client if clientName is provided
       if (clientName && vehicleData.clientId === 'pending') {
+        // Extract best phone number as string (not the PhoneNumber object)
+        const bestPhone = phoneContact?.phoneNumbers 
+          ? contactsService.getBestPhoneNumber(phoneContact.phoneNumbers) 
+          : null;
+        
         const newClient: Client = {
           id: crypto.randomUUID(),
           name: clientName,
-          phone: phoneContact?.phoneNumbers?.[0] || undefined,
+          phone: bestPhone || undefined,
           email: phoneContact?.emails?.[0] || undefined,
           createdAt: new Date(),
         };
