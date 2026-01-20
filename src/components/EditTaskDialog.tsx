@@ -707,20 +707,20 @@ export const EditTaskDialog = ({
           })}
         </div>
 
-        <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex gap-2">
+        <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex gap-2 items-center">
           {onDelete && !showDeleteConfirm && (
             <Button 
               variant="destructive" 
+              size="icon"
               onClick={() => setShowDeleteConfirm(true)}
-              className="gap-1"
+              title="Delete"
             >
               <Trash2 className="h-4 w-4" />
-              Delete
             </Button>
           )}
           {onDelete && showDeleteConfirm && (
-            <div className="flex gap-2 items-center">
-              <span className="text-xs text-destructive">Delete task?</span>
+            <div className="flex gap-1 items-center">
+              <span className="text-xs text-destructive">Delete?</span>
               <Button 
                 variant="destructive" 
                 size="sm"
@@ -742,18 +742,18 @@ export const EditTaskDialog = ({
           )}
           <Button 
             variant="secondary" 
-            onClick={handleAddNewSession} 
-            className="gap-1"
+            size="icon"
+            onClick={handleAddNewSession}
+            title="Add Session"
           >
             <Plus className="h-4 w-4" />
-            Add Session
           </Button>
           <div className="flex-1" />
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save Changes
+          <Button size="sm" onClick={handleSave}>
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>
