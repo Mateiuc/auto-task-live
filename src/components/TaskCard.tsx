@@ -15,7 +15,8 @@ import { getVehicleColorScheme, VehicleColorScheme } from '@/lib/vehicleColors';
 import billBackground from '@/assets/bill-background.jpg';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
-import { capacitorStorage } from '@/lib/capacitorStorage';
+import { photoStorageService } from '@/services/photoStorageService';
+import { indexedDB } from '@/lib/indexedDB';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -282,7 +283,7 @@ export const TaskCard = ({
   };
 
   // Generate billing PDF (branded format for invoicing)
-  const generateBillingPDF = () => {
+  const generateBillingPDF = async () => {
     try {
       const doc = new jsPDF({
         format: 'letter'
@@ -455,8 +456,15 @@ export const TaskCard = ({
         });
       });
 
-      // If there are photos, add a new page
+      // If there are photos, load them from filesystem and add a new page
       if (allPhotos.length > 0) {
+        // Load all photos from filesystem
+        const filePaths = allPhotos
+          .map(item => item.photo.filePath)
+          .filter((fp): fp is string => !!fp);
+        
+        const photoDataMap = await photoStorageService.loadMultiplePhotos(filePaths);
+        
         doc.addPage();
         
         let photoYPos = 20;
@@ -467,7 +475,7 @@ export const TaskCard = ({
         doc.setTextColor(0, 0, 0);
         photoYPos += 15;
         
-        allPhotos.forEach((item) => {
+        for (const item of allPhotos) {
           // Check if we need a new page (photos are ~60mm tall + label)
           if (photoYPos > 200) {
             doc.addPage();
@@ -480,18 +488,30 @@ export const TaskCard = ({
           doc.text(`Session ${item.sessionNum}`, 20, photoYPos);
           photoYPos += 5;
           
+          // Get photo data from map (by filePath) or fallback to base64 (legacy)
+          const photoBase64 = item.photo.filePath 
+            ? photoDataMap.get(item.photo.filePath)
+            : item.photo.base64;
+          
           // Add image (centered, ~80mm wide)
-          try {
-            const imgData = `data:image/jpeg;base64,${item.photo.base64}`;
-            doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
-            photoYPos += 70;
-          } catch (imgError) {
+          if (photoBase64) {
+            try {
+              const imgData = `data:image/jpeg;base64,${photoBase64}`;
+              doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
+              photoYPos += 70;
+            } catch (imgError) {
+              doc.setFontSize(9);
+              doc.setFont('helvetica', 'italic');
+              doc.text('(Image could not be loaded)', 20, photoYPos + 10);
+              photoYPos += 20;
+            }
+          } else {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'italic');
             doc.text('(Image could not be loaded)', 20, photoYPos + 10);
             photoYPos += 20;
           }
-        });
+        }
       }
 
       // Save PDF
@@ -515,7 +535,7 @@ export const TaskCard = ({
   };
 
   // Generate preview PDF (same as billing but with different filename)
-  const generatePreviewPDF = () => {
+  const generatePreviewPDF = async () => {
     try {
       // Add loading toast
       toast({
@@ -564,7 +584,6 @@ export const TaskCard = ({
       const col1X = 20;
       const col2X = 130;
       const col3X = 190.9;
-      const tableWidth = 175.9;
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
@@ -683,8 +702,15 @@ export const TaskCard = ({
         });
       });
 
-      // If there are photos, add a new page
+      // If there are photos, load them from filesystem and add a new page
       if (allPhotos.length > 0) {
+        // Load all photos from filesystem
+        const filePaths = allPhotos
+          .map(item => item.photo.filePath)
+          .filter((fp): fp is string => !!fp);
+        
+        const photoDataMap = await photoStorageService.loadMultiplePhotos(filePaths);
+        
         doc.addPage();
         
         let photoYPos = 20;
@@ -695,7 +721,7 @@ export const TaskCard = ({
         doc.setTextColor(0, 0, 0);
         photoYPos += 15;
         
-        allPhotos.forEach((item) => {
+        for (const item of allPhotos) {
           // Check if we need a new page (photos are ~60mm tall + label)
           if (photoYPos > 200) {
             doc.addPage();
@@ -708,18 +734,30 @@ export const TaskCard = ({
           doc.text(`Session ${item.sessionNum}`, 20, photoYPos);
           photoYPos += 5;
           
+          // Get photo data from map (by filePath) or fallback to base64 (legacy)
+          const photoBase64 = item.photo.filePath 
+            ? photoDataMap.get(item.photo.filePath)
+            : item.photo.base64;
+          
           // Add image (centered, ~80mm wide)
-          try {
-            const imgData = `data:image/jpeg;base64,${item.photo.base64}`;
-            doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
-            photoYPos += 70;
-          } catch (imgError) {
+          if (photoBase64) {
+            try {
+              const imgData = `data:image/jpeg;base64,${photoBase64}`;
+              doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
+              photoYPos += 70;
+            } catch (imgError) {
+              doc.setFontSize(9);
+              doc.setFont('helvetica', 'italic');
+              doc.text('(Image could not be loaded)', 20, photoYPos + 10);
+              photoYPos += 20;
+            }
+          } else {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'italic');
             doc.text('(Image could not be loaded)', 20, photoYPos + 10);
             photoYPos += 20;
           }
-        });
+        }
       }
 
       // Save PDF with preview filename
@@ -769,7 +807,7 @@ export const TaskCard = ({
 
       if (photo.base64String) {
         // Fetch fresh task data from storage to avoid stale state issues
-        const currentTasks = await capacitorStorage.getTasks();
+        const currentTasks = await indexedDB.getTasks();
         const freshTask = currentTasks.find(t => t.id === task.id);
         
         if (!freshTask || !freshTask.activeSessionId) {
@@ -783,9 +821,18 @@ export const TaskCard = ({
 
         const sessionIndex = freshTask.sessions.findIndex(s => s.id === freshTask.activeSessionId);
         
+        const photoId = crypto.randomUUID();
+        
+        // Save photo to filesystem and get the file path
+        const filePath = await photoStorageService.savePhoto(
+          photo.base64String,
+          task.id,
+          photoId
+        );
+        
         const newPhoto: SessionPhoto = {
-          id: crypto.randomUUID(),
-          base64: photo.base64String,
+          id: photoId,
+          filePath, // Store file path instead of base64
           capturedAt: new Date(),
           sessionNumber: sessionIndex + 1,
         };
@@ -800,7 +847,7 @@ export const TaskCard = ({
         };
 
         await onUpdateTask?.(updatedTask);
-        await toast({
+        toast({
           title: 'Photo Captured',
           description: `Photo added to Session ${sessionIndex + 1}`,
         });
@@ -810,6 +857,7 @@ export const TaskCard = ({
       if ((error as Error).message?.includes('cancelled')) {
         return; // User cancelled, no error message needed
       }
+      console.error('[TaskCard] Camera error:', error);
       toast({
         title: 'Camera Error',
         description: 'Could not capture photo. Please try again.',
