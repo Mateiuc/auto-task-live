@@ -49,12 +49,14 @@ export const ManageClientsDialog = ({
   const [deleteClientDialog, setDeleteClientDialog] = useState<{ open: boolean; clientId: string | null }>({ open: false, clientId: null });
   const [deleteVehicleDialog, setDeleteVehicleDialog] = useState<{ open: boolean; vehicleId: string | null }>({ open: false, vehicleId: null });
 
-  // Filter clients
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.phone?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter clients - guard against non-string phone/email (legacy data fix)
+  const filteredClients = clients.filter(client => {
+    const query = searchQuery.toLowerCase();
+    const nameMatch = client.name.toLowerCase().includes(query);
+    const emailMatch = typeof client.email === 'string' && client.email.toLowerCase().includes(query);
+    const phoneMatch = typeof client.phone === 'string' && client.phone.toLowerCase().includes(query);
+    return nameMatch || emailMatch || phoneMatch;
+  });
 
   // Check if Start button should be shown for a vehicle
   const shouldShowStartButton = (vehicleId: string) => {

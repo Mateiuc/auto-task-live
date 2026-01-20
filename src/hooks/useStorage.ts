@@ -10,7 +10,42 @@ export const useClients = () => {
     const loadClients = async () => {
       try {
         const loadedClients = await capacitorStorage.getClients();
-        setClientsState(loadedClients);
+        
+        // Auto-repair corrupted client data (phone stored as object instead of string)
+        let needsRepair = false;
+        const sanitizedClients = loadedClients.map(client => {
+          let phone = client.phone;
+          let email = client.email;
+          
+          // Fix phone if it's an object (from contact picker bug)
+          if (phone && typeof phone === 'object') {
+            const phoneObj = phone as any;
+            phone = phoneObj.number || undefined;
+            needsRepair = true;
+            console.log(`[Storage] Repairing client ${client.name}: phone was object, extracted "${phone}"`);
+          } else if (phone && typeof phone !== 'string') {
+            phone = undefined;
+            needsRepair = true;
+            console.log(`[Storage] Repairing client ${client.name}: phone was invalid type, cleared`);
+          }
+          
+          // Fix email if it's not a string
+          if (email && typeof email !== 'string') {
+            email = undefined;
+            needsRepair = true;
+            console.log(`[Storage] Repairing client ${client.name}: email was invalid type, cleared`);
+          }
+          
+          return { ...client, phone, email };
+        });
+        
+        // Persist repaired data
+        if (needsRepair) {
+          console.log('[Storage] Persisting repaired client data...');
+          await capacitorStorage.setClients(sanitizedClients);
+        }
+        
+        setClientsState(sanitizedClients);
       } catch (error) {
         console.error('Failed to load clients:', error);
       } finally {
