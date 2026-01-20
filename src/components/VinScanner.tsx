@@ -575,11 +575,6 @@ const VinScanner: React.FC<VinScannerProps> = ({
           </div>
         )}
 
-        {isScanning && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
-            Scanning with {ocrProvider === 'tesseract' ? 'TESSERACT (Offline)' : ocrProvider.toUpperCase()}…
-          </div>
-        )}
         </div>
 
         {/* Debug panel below camera */}
