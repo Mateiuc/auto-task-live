@@ -1,12 +1,12 @@
 import { useToast } from './use-toast';
-import { useSettings } from './useStorage';
+import { capacitorStorage } from '@/lib/capacitorStorage';
 
 export function useNotifications() {
   const { toast: originalToast, ...rest } = useToast();
-  const { settings } = useSettings();
   
-  const toast = (options: Parameters<typeof originalToast>[0]) => {
-    // Only show toast if notifications are enabled (default: true)
+  const toast = async (options: Parameters<typeof originalToast>[0]) => {
+    // Check settings at toast-time to avoid race conditions
+    const settings = await capacitorStorage.getSettings();
     if (settings?.notificationsEnabled !== false) {
       return originalToast(options);
     }
