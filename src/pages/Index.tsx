@@ -382,8 +382,8 @@ const Index = () => {
     toast({ title: 'Payment Recorded' });
   };
 
-  const handleDelete = (taskId: string) => {
-    deleteTask(taskId);
+  const handleDelete = async (taskId: string) => {
+    await deleteTask(taskId);
     toast({ title: 'Task Deleted' });
   };
 
