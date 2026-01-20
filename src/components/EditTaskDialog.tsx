@@ -17,13 +17,16 @@ interface EditTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   task: Task;
   onSave: (updatedTask: Task) => void;
+  onDelete?: (taskId: string) => void;
 }
 export const EditTaskDialog = ({
   open,
   onOpenChange,
   task,
-  onSave
+  onSave,
+  onDelete
 }: EditTaskDialogProps) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useNotifications();
   // Get vehicle color scheme
   const colorScheme = getVehicleColorScheme(task.vehicleId);
@@ -705,6 +708,38 @@ export const EditTaskDialog = ({
         </div>
 
         <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex gap-2">
+          {onDelete && !showDeleteConfirm && (
+            <Button 
+              variant="destructive" 
+              onClick={() => setShowDeleteConfirm(true)}
+              className="gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          )}
+          {onDelete && showDeleteConfirm && (
+            <div className="flex gap-2 items-center">
+              <span className="text-xs text-destructive">Delete task?</span>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => {
+                  onDelete(task.id);
+                  onOpenChange(false);
+                }}
+              >
+                Yes
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                No
+              </Button>
+            </div>
+          )}
           <Button 
             variant="secondary" 
             onClick={handleAddNewSession} 
