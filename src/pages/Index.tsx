@@ -397,51 +397,63 @@ const Index = () => {
     toast({ title: 'Client Added' });
   };
 
-  const handleAddVehicle = (
+  const handleAddVehicle = async (
     vehicleData: Omit<Vehicle, 'id'>, 
     clientName?: string,
     phoneContact?: any
   ) => {
-    let finalClientId = vehicleData.clientId;
+    try {
+      let finalClientId = vehicleData.clientId;
+      let clientForTask: Client | undefined;
 
-    // Auto-create client if clientName is provided
-    if (clientName && vehicleData.clientId === 'pending') {
-      const newClient: Client = {
+      // Auto-create client if clientName is provided
+      if (clientName && vehicleData.clientId === 'pending') {
+        const newClient: Client = {
+          id: crypto.randomUUID(),
+          name: clientName,
+          phone: phoneContact?.phoneNumbers?.[0] || undefined,
+          email: phoneContact?.emails?.[0] || undefined,
+          createdAt: new Date(),
+        };
+        await addClient(newClient);
+        finalClientId = newClient.id;
+        clientForTask = newClient;
+        toast({ title: 'Client Created', description: `${clientName} has been added` });
+      } else {
+        clientForTask = clients.find(c => c.id === finalClientId);
+      }
+
+      const newVehicle: Vehicle = {
+        ...vehicleData,
         id: crypto.randomUUID(),
-        name: clientName,
-        phone: phoneContact?.phoneNumbers?.[0] || undefined,
-        email: phoneContact?.emails?.[0] || undefined,
+        clientId: finalClientId,
+      };
+      await addVehicle(newVehicle);
+
+      // Auto-create pending task for new vehicle
+      const newTask: Task = {
+        id: crypto.randomUUID(),
+        clientId: finalClientId,
+        vehicleId: newVehicle.id,
+        customerName: clientForTask?.name || clientName || 'Unknown',
+        carVin: newVehicle.vin,
+        status: 'pending',
+        totalTime: 0,
+        needsFollowUp: false,
+        sessions: [],
         createdAt: new Date(),
       };
-      addClient(newClient);
-      finalClientId = newClient.id;
-      toast({ title: 'Client Created', description: `${clientName} has been added` });
+      await addTask(newTask);
+
+      toast({ title: 'Vehicle Added', description: 'Ready to start work' });
+    } catch (error) {
+      console.error('Failed to add vehicle:', error);
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to save vehicle. Please try again.',
+        variant: 'destructive'
+      });
     }
-
-    const newVehicle: Vehicle = {
-      ...vehicleData,
-      id: crypto.randomUUID(),
-      clientId: finalClientId,
-    };
-    addVehicle(newVehicle);
-
-    // Auto-create pending task for new vehicle
-    const client = clients.find(c => c.id === finalClientId);
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      clientId: finalClientId,
-      vehicleId: newVehicle.id,
-      customerName: client?.name || clientName || 'Unknown',
-      carVin: newVehicle.vin,
-      status: 'pending',
-      totalTime: 0,
-      needsFollowUp: false,
-      sessions: [],
-      createdAt: new Date(),
-    };
-    addTask(newTask);
-
-    toast({ title: 'Vehicle Added', description: 'Ready to start work' });
   };
 
   const handleUpdateClient = (id: string, updates: Partial<Client>) => {
