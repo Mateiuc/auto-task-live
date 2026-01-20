@@ -658,8 +658,8 @@ export const ManageClientsDialog = ({
               })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel className="m-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteClientDialog.clientId) {
@@ -668,7 +668,7 @@ export const ManageClientsDialog = ({
                 }
                 setDeleteClientDialog({ open: false, clientId: null });
               }}
-              className="w-full sm:w-auto m-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="m-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
@@ -697,8 +697,8 @@ export const ManageClientsDialog = ({
               })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel className="m-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteVehicleDialog.vehicleId) {
@@ -707,7 +707,7 @@ export const ManageClientsDialog = ({
                 }
                 setDeleteVehicleDialog({ open: false, vehicleId: null });
               }}
-              className="w-full sm:w-auto m-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="m-0 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
