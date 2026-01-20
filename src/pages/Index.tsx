@@ -605,7 +605,7 @@ const Index = () => {
                           onRestartTimer={handleRestartTimer}
                           onPauseTimer={task.status === 'in-progress' ? handlePauseTimer : undefined}
                           onStopTimer={task.status === 'in-progress' || task.status === 'paused' ? handleStopTimer : undefined}
-                          onUpdateTask={(updatedTask) => updateTask(updatedTask.id, updatedTask)}
+                          onUpdateTask={async (updatedTask) => { await updateTask(updatedTask.id, updatedTask); }}
                           onDelete={handleDelete}
                           vehicleColorScheme={colorScheme}
                         />
@@ -649,7 +649,7 @@ const Index = () => {
                           onMarkBilled={handleMarkBilled}
                           onMarkPaid={handleMarkPaid}
                           onRestartTimer={handleRestartTimer}
-                          onUpdateTask={(updatedTask) => updateTask(updatedTask.id, updatedTask)}
+                        onUpdateTask={async (updatedTask) => { await updateTask(updatedTask.id, updatedTask); }}
                           onDelete={handleDelete}
                           vehicleColorScheme={colorScheme}
                         />
@@ -699,7 +699,7 @@ const Index = () => {
         onMarkBilled={handleMarkBilled}
         onMarkPaid={handleMarkPaid}
         onRestartTimer={handleRestartTimer}
-        onUpdateTask={(updatedTask) => updateTask(updatedTask.id, updatedTask)}
+        onUpdateTask={async (updatedTask) => { await updateTask(updatedTask.id, updatedTask); }}
         onDelete={handleDelete}
         onUpdateClient={handleUpdateClient}
         onDeleteClient={handleDeleteClient}
