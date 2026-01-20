@@ -45,15 +45,32 @@ export const contactsService = {
   },
 
   async getAllContacts(): Promise<PhoneContact[]> {
+    // Check if running on native platform first
+    if (!Capacitor.isNativePlatform()) {
+      console.log('[Contacts] Not running on native platform - contacts unavailable');
+      return [];
+    }
+
     try {
+      console.log('[Contacts] Checking permission status...');
       const hasPermission = await this.checkPermissions();
+      
       if (!hasPermission) {
+        console.log('[Contacts] Permission not granted, requesting...');
         const granted = await this.requestPermissions();
         if (!granted) {
+          console.warn(
+            '[Contacts] Permission denied. This could mean:\n' +
+            '1. User denied the permission request\n' +
+            '2. READ_CONTACTS permission is not declared in AndroidManifest.xml\n' +
+            '3. App needs to be reinstalled after adding permissions\n' +
+            'See ANDROID_STUDIO_SETUP.md for required permissions.'
+          );
           return [];
         }
       }
 
+      console.log('[Contacts] Permission granted, fetching contacts from device...');
       const result = await Contacts.getContacts({
         projection: {
           name: true,
@@ -62,7 +79,9 @@ export const contactsService = {
         }
       });
 
-      return result.contacts.map((contact: any) => ({
+      console.log(`[Contacts] Successfully fetched ${result.contacts.length} contacts`);
+      
+      const mappedContacts = result.contacts.map((contact: any) => ({
         id: contact.contactId || Math.random().toString(),
         name: contact.name?.display || 'Unknown',
         phoneNumbers: contact.phones?.map((p: any) => ({
@@ -72,8 +91,25 @@ export const contactsService = {
         })) || [],
         emails: contact.emails?.map((e: any) => e.address || '') || [],
       }));
-    } catch (error) {
-      console.error('Error fetching contacts:', error);
+
+      // Filter out contacts without names or phone numbers
+      const validContacts = mappedContacts.filter(
+        c => c.name !== 'Unknown' && c.phoneNumbers.length > 0
+      );
+      
+      console.log(`[Contacts] Returning ${validContacts.length} valid contacts (with name and phone)`);
+      return validContacts;
+    } catch (error: any) {
+      console.error('[Contacts] Error fetching contacts:', error);
+      console.error('[Contacts] Error details:', error?.message || 'Unknown error');
+      
+      // Check for common permission-related errors
+      if (error?.message?.includes('permission') || error?.code === 'PERMISSION_DENIED') {
+        console.warn(
+          '[Contacts] Permission error detected. Ensure READ_CONTACTS is in AndroidManifest.xml'
+        );
+      }
+      
       return [];
     }
   },
