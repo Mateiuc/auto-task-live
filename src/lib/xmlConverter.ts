@@ -140,15 +140,16 @@ export const parseXMLString = (xmlText: string): DatabaseExport => {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
-  // Check for parsing errors
+  // Check for XML parsing errors (malformed/corrupted XML)
   const parserError = xmlDoc.querySelector('parsererror');
   if (parserError) {
-    throw new Error('Invalid XML format');
+    throw new Error('Invalid XML format: The file appears to be corrupted or is not valid XML');
   }
 
+  // Check for expected root element
   const root = xmlDoc.documentElement;
-  if (root.tagName !== 'AutoTimeData') {
-    throw new Error('Invalid AutoTime backup file');
+  if (!root || root.tagName !== 'AutoTimeData') {
+    throw new Error('Invalid backup file: This does not appear to be an AutoTime backup');
   }
 
   const data: DatabaseExport = {
