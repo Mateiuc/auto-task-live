@@ -27,7 +27,7 @@ interface TaskCardProps {
   onRestartTimer: (taskId: string) => void;
   onPauseTimer?: () => void;
   onStopTimer?: () => void;
-  onUpdateTask?: (updatedTask: Task) => void;
+  onUpdateTask?: (updatedTask: Task) => Promise<void> | void;
   onDelete?: (taskId: string) => void;
   vehicleColorScheme?: VehicleColorScheme;
 }
@@ -785,8 +785,8 @@ export const TaskCard = ({
           ),
         };
 
-        onUpdateTask?.(updatedTask);
-        toast({
+        await onUpdateTask?.(updatedTask);
+        await toast({
           title: 'Photo Captured',
           description: `Photo added to Session ${sessionIndex + 1}`,
         });
