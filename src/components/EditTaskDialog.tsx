@@ -707,20 +707,22 @@ export const EditTaskDialog = ({
           })}
         </div>
 
-        <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex gap-2 items-center">
+        <DialogFooter className="px-4 py-3 border-t bg-card/80 backdrop-blur-sm flex justify-center items-center gap-3">
           {onDelete && !showDeleteConfirm && (
             <Button 
               variant="destructive" 
-              size="icon"
+              size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              title="Delete"
+              className="flex flex-col items-center justify-center py-2 px-3 h-auto leading-tight text-center"
             >
-              <Trash2 className="h-4 w-4" />
+              <span className="text-xs">Delete</span>
+              <span className="text-xs">Car</span>
             </Button>
           )}
+          
           {onDelete && showDeleteConfirm && (
-            <div className="flex gap-1 items-center">
-              <span className="text-xs text-destructive">Delete?</span>
+            <div className="flex gap-2 items-center justify-center">
+              <span className="text-sm text-destructive font-medium">Delete this car?</span>
               <Button 
                 variant="destructive" 
                 size="sm"
@@ -740,21 +742,36 @@ export const EditTaskDialog = ({
               </Button>
             </div>
           )}
-          <Button 
-            variant="secondary" 
-            size="icon"
-            onClick={handleAddNewSession}
-            title="Add Session"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <div className="flex-1" />
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSave}>
-            Save
-          </Button>
+          
+          {!showDeleteConfirm && (
+            <>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={handleAddNewSession}
+                className="flex flex-col items-center justify-center py-2 px-3 h-auto leading-tight text-center"
+              >
+                <span className="text-xs">Add</span>
+                <span className="text-xs">Session</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onOpenChange(false)}
+                className="flex items-center justify-center"
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleSave}
+                className="flex flex-col items-center justify-center py-2 px-3 h-auto leading-tight text-center"
+              >
+                <span className="text-xs">Save</span>
+                <span className="text-xs">Changes</span>
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>;
