@@ -186,22 +186,39 @@ const VinScanner: React.FC<VinScannerProps> = ({
       
       // Check camera capabilities for zoom and torch
       const track = mediaStream.getVideoTracks()[0];
-      if (track && typeof track.getCapabilities === 'function') {
-        const capabilities = track.getCapabilities() as any;
-        
-        // Check zoom support
-        if (capabilities.zoom) {
-          setZoomCapabilities({
-            min: capabilities.zoom.min || 1,
-            max: capabilities.zoom.max || 1,
-            step: capabilities.zoom.step || 0.1
-          });
-          setZoomLevel(capabilities.zoom.min || 1);
+      if (track) {
+        // Try getCapabilities first
+        if (typeof track.getCapabilities === 'function') {
+          const capabilities = track.getCapabilities() as any;
+          
+          // Check zoom support
+          if (capabilities.zoom) {
+            setZoomCapabilities({
+              min: capabilities.zoom.min || 1,
+              max: capabilities.zoom.max || 1,
+              step: capabilities.zoom.step || 0.1
+            });
+            setZoomLevel(capabilities.zoom.min || 1);
+          }
+          
+          // Check torch support via capabilities
+          if (capabilities.torch) {
+            setTorchSupported(true);
+          }
         }
         
-        // Check torch support
-        if (capabilities.torch) {
-          setTorchSupported(true);
+        // Fallback: Try to detect torch by attempting to apply constraint
+        // Some devices support torch but don't report it in getCapabilities
+        if (!torchSupported) {
+          try {
+            // Try applying torch constraint - if it doesn't throw, it's supported
+            await track.applyConstraints({ advanced: [{ torch: false } as any] });
+            setTorchSupported(true);
+            console.log('Torch supported (detected via constraint test)');
+          } catch (e) {
+            // Torch not supported
+            console.log('Torch not supported on this device');
+          }
         }
       }
     } catch (error) {
