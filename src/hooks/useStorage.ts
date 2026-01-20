@@ -145,32 +145,40 @@ export const useTasks = () => {
     loadTasks();
   }, []);
 
-  const setTasks = async (tasks: Task[]) => {
+  const setTasks = async (newTasks: Task[]) => {
     try {
-      await capacitorStorage.setTasks(tasks);
-      setTasksState(tasks);
+      await capacitorStorage.setTasks(newTasks);
+      setTasksState(newTasks);
     } catch (error) {
       console.error('Failed to save tasks:', error);
     }
   };
 
   const addTask = async (task: Task) => {
-    const updated = [...tasks, task];
+    // Get fresh data from storage to avoid stale state
+    const currentTasks = await capacitorStorage.getTasks();
+    const updated = [...currentTasks, task];
     await setTasks(updated);
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
-    const updated = tasks.map(t => t.id === id ? { ...t, ...updates } : t);
+    // Get fresh data from storage to avoid stale state
+    const currentTasks = await capacitorStorage.getTasks();
+    const updated = currentTasks.map(t => t.id === id ? { ...t, ...updates } : t);
     await setTasks(updated);
   };
 
   const deleteTask = async (id: string) => {
-    const updated = tasks.filter(t => t.id !== id);
+    // Get fresh data from storage to avoid stale state
+    const currentTasks = await capacitorStorage.getTasks();
+    const updated = currentTasks.filter(t => t.id !== id);
     await setTasks(updated);
   };
 
   const batchUpdateTasks = async (updates: Array<{ id: string; updates: Partial<Task> }>) => {
-    const updated = tasks.map(task => {
+    // Get fresh data from storage to avoid stale state
+    const currentTasks = await capacitorStorage.getTasks();
+    const updated = currentTasks.map(task => {
       const update = updates.find(u => u.id === task.id);
       return update ? { ...task, ...update.updates } : task;
     });
