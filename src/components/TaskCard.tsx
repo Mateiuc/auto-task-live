@@ -15,6 +15,7 @@ import { getVehicleColorScheme, VehicleColorScheme } from '@/lib/vehicleColors';
 import billBackground from '@/assets/bill-background.jpg';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
+import { capacitorStorage } from '@/lib/capacitorStorage';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -767,7 +768,20 @@ export const TaskCard = ({
       });
 
       if (photo.base64String) {
-        const sessionIndex = task.sessions.findIndex(s => s.id === task.activeSessionId);
+        // Fetch fresh task data from storage to avoid stale state issues
+        const currentTasks = await capacitorStorage.getTasks();
+        const freshTask = currentTasks.find(t => t.id === task.id);
+        
+        if (!freshTask || !freshTask.activeSessionId) {
+          toast({
+            title: 'Session Ended',
+            description: 'The work session has ended. Photo not saved.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const sessionIndex = freshTask.sessions.findIndex(s => s.id === freshTask.activeSessionId);
         
         const newPhoto: SessionPhoto = {
           id: crypto.randomUUID(),
@@ -777,9 +791,9 @@ export const TaskCard = ({
         };
 
         const updatedTask = {
-          ...task,
-          sessions: task.sessions.map(session => 
-            session.id === task.activeSessionId
+          ...freshTask,
+          sessions: freshTask.sessions.map(session => 
+            session.id === freshTask.activeSessionId
               ? { ...session, photos: [...(session.photos || []), newPhoto] }
               : session
           ),
