@@ -26,7 +26,8 @@ export interface Part {
 
 export interface SessionPhoto {
   id: string;
-  base64: string;
+  filePath?: string;      // Path to photo file in filesystem
+  base64?: string;        // Deprecated: only used for migration from old format
   capturedAt: Date;
   sessionNumber: number;
 }

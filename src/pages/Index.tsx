@@ -13,6 +13,8 @@ import { useClients, useVehicles, useTasks, useSettings } from '@/hooks/useStora
 import { Task, WorkSession, WorkPeriod, Part, Client, Vehicle } from '@/types';
 import { useNotifications } from '@/hooks/useNotifications';
 import { migrateToCapacitorStorage } from '@/lib/storageMigration';
+import { migratePhotosToFilesystem } from '@/lib/photoMigration';
+import { photoStorageService } from '@/services/photoStorageService';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
 import { contactsService } from '@/services/contactsService';
 
@@ -34,6 +36,12 @@ const Index = () => {
           title: 'Storage Upgraded', 
           description: 'Your data is now stored in native Android storage for better reliability',
         });
+      }
+      
+      // Migrate photos to filesystem (runs after storage migration)
+      const photoMigration = await migratePhotosToFilesystem();
+      if (photoMigration.migrated) {
+        console.log(`[Index] Migrated ${photoMigration.photoCount} photos to filesystem`);
       }
     };
     performMigration();
@@ -384,6 +392,8 @@ const Index = () => {
   };
 
   const handleDelete = async (taskId: string) => {
+    // Delete photos from filesystem before deleting task
+    await photoStorageService.deleteAllPhotosForTask(taskId);
     await deleteTask(taskId);
     toast({ title: 'Task Deleted' });
   };
