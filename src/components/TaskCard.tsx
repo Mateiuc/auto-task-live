@@ -1,11 +1,11 @@
-import { Task, Client, Vehicle, WorkSession } from '@/types';
+import { Task, Client, Vehicle, WorkSession, SessionPhoto } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreVertical, Edit, Wrench, Pause, Square, Trash } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreVertical, Edit, Wrench, Pause, Square, Trash, Camera as CameraIcon } from 'lucide-react';
 import { formatDuration, formatCurrency, formatTime } from '@/lib/formatTime';
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
@@ -13,6 +13,8 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { EditTaskDialog } from './EditTaskDialog';
 import { getVehicleColorScheme, VehicleColorScheme } from '@/lib/vehicleColors';
 import billBackground from '@/assets/bill-background.jpg';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -444,6 +446,53 @@ export const TaskCard = ({
       const timestamp = formatTimestamp(new Date());
       doc.text(`Generated: ${timestamp}`, pageCenter, timestampY, { align: 'center' });
 
+      // Collect all photos from all sessions for the photos page
+      const allPhotos: Array<{ photo: SessionPhoto; sessionNum: number }> = [];
+      task.sessions.forEach((session, idx) => {
+        (session.photos || []).forEach(photo => {
+          allPhotos.push({ photo, sessionNum: idx + 1 });
+        });
+      });
+
+      // If there are photos, add a new page
+      if (allPhotos.length > 0) {
+        doc.addPage();
+        
+        let photoYPos = 20;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(128, 0, 128);
+        doc.text('Work Photos', 105, photoYPos, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        photoYPos += 15;
+        
+        allPhotos.forEach((item) => {
+          // Check if we need a new page (photos are ~60mm tall + label)
+          if (photoYPos > 200) {
+            doc.addPage();
+            photoYPos = 20;
+          }
+          
+          // Session label
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Session ${item.sessionNum}`, 20, photoYPos);
+          photoYPos += 5;
+          
+          // Add image (centered, ~80mm wide)
+          try {
+            const imgData = `data:image/jpeg;base64,${item.photo.base64}`;
+            doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
+            photoYPos += 70;
+          } catch (imgError) {
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.text('(Image could not be loaded)', 20, photoYPos + 10);
+            photoYPos += 20;
+          }
+        });
+      }
+
       // Save PDF
       const clientName = sanitizeForFilename(client?.name);
       const carBrand = sanitizeForFilename(vehicle?.make);
@@ -625,6 +674,53 @@ export const TaskCard = ({
       const timestamp = formatTimestamp(new Date());
       doc.text(`Generated: ${timestamp}`, pageCenter, timestampY, { align: 'center' });
 
+      // Collect all photos from all sessions for the photos page
+      const allPhotos: Array<{ photo: SessionPhoto; sessionNum: number }> = [];
+      task.sessions.forEach((session, idx) => {
+        (session.photos || []).forEach(photo => {
+          allPhotos.push({ photo, sessionNum: idx + 1 });
+        });
+      });
+
+      // If there are photos, add a new page
+      if (allPhotos.length > 0) {
+        doc.addPage();
+        
+        let photoYPos = 20;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(128, 0, 128);
+        doc.text('Work Photos', 105, photoYPos, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        photoYPos += 15;
+        
+        allPhotos.forEach((item) => {
+          // Check if we need a new page (photos are ~60mm tall + label)
+          if (photoYPos > 200) {
+            doc.addPage();
+            photoYPos = 20;
+          }
+          
+          // Session label
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Session ${item.sessionNum}`, 20, photoYPos);
+          photoYPos += 5;
+          
+          // Add image (centered, ~80mm wide)
+          try {
+            const imgData = `data:image/jpeg;base64,${item.photo.base64}`;
+            doc.addImage(imgData, 'JPEG', 20, photoYPos, 80, 60);
+            photoYPos += 70;
+          } catch (imgError) {
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.text('(Image could not be loaded)', 20, photoYPos + 10);
+            photoYPos += 20;
+          }
+        });
+      }
+
       // Save PDF with preview filename
       const clientName = sanitizeForFilename(client?.name);
       const carBrand = sanitizeForFilename(vehicle?.make);
@@ -650,6 +746,64 @@ export const TaskCard = ({
     generateBillingPDF();
     onMarkBilled(task.id);
   };
+
+  // Handle capturing photo for active session
+  const handleCapturePhoto = async () => {
+    if (!task.activeSessionId) {
+      toast({
+        title: 'No Active Session',
+        description: 'Start a work session before capturing photos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+      });
+
+      if (photo.base64String) {
+        const sessionIndex = task.sessions.findIndex(s => s.id === task.activeSessionId);
+        
+        const newPhoto: SessionPhoto = {
+          id: crypto.randomUUID(),
+          base64: photo.base64String,
+          capturedAt: new Date(),
+          sessionNumber: sessionIndex + 1,
+        };
+
+        const updatedTask = {
+          ...task,
+          sessions: task.sessions.map(session => 
+            session.id === task.activeSessionId
+              ? { ...session, photos: [...(session.photos || []), newPhoto] }
+              : session
+          ),
+        };
+
+        onUpdateTask?.(updatedTask);
+        toast({
+          title: 'Photo Captured',
+          description: `Photo added to Session ${sessionIndex + 1}`,
+        });
+      }
+    } catch (error) {
+      // User cancelled or camera error
+      if ((error as Error).message?.includes('cancelled')) {
+        return; // User cancelled, no error message needed
+      }
+      toast({
+        title: 'Camera Error',
+        description: 'Could not capture photo. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'in-progress':
@@ -695,6 +849,12 @@ export const TaskCard = ({
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </DropdownMenuItem>
+                  {isActive && task.activeSessionId && (
+                    <DropdownMenuItem onClick={handleCapturePhoto}>
+                      <CameraIcon className="h-4 w-4 mr-2" />
+                      Capture Photo
+                    </DropdownMenuItem>
+                  )}
                   {task.status === 'completed' && <>
                       <DropdownMenuItem onClick={generatePreviewPDF}>
                         <FileText className="h-4 w-4 mr-2" />
@@ -870,6 +1030,13 @@ export const TaskCard = ({
                             <span>{formatCurrency(part.price * part.quantity)}</span>
                           </div>)}
                        </div>}
+                    
+                    {session.photos && session.photos.length > 0 && (
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <CameraIcon className="h-3 w-3" />
+                        {session.photos.length} photo{session.photos.length > 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>;
             })}
             </div>
