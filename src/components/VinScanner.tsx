@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { X, Bug, Copy } from 'lucide-react';
+import { X, Bug, Copy, Flashlight, Sun, ZoomIn, ZoomOut } from 'lucide-react';
 import { validateVinStrict } from '@/lib/vinDecoder';
 import { readVinWithGemini, type OcrResult as GeminiOcrResult } from '@/lib/geminiVinOcr';
 import { readVinWithGrok, type OcrResult as GrokOcrResult } from '@/lib/grokVinOcr';
@@ -39,11 +39,17 @@ const VinScanner: React.FC<VinScannerProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isFrameReady, setIsFrameReady] = useState(false);
   const [frameDimensions, setFrameDimensions] = useState({ 
-    widthPercent: 80, 
-    heightPx: 128 
+    widthPercent: 90, 
+    heightPx: 40 
   });
   const [scanColor, setScanColor] = useState(0);
   const { toast } = useNotifications();
+  
+  // Camera control state
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomCapabilities, setZoomCapabilities] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
   const warnedNoKeyRef = useRef(false);
   
   // Debug state
@@ -83,6 +89,13 @@ const VinScanner: React.FC<VinScannerProps> = ({
     
     return () => {
       scanningRef.current = false;
+      
+      // Turn off torch before stopping camera
+      if (stream && torchOn) {
+        const track = stream.getVideoTracks()[0];
+        track?.applyConstraints({ advanced: [{ torch: false } as any] }).catch(() => {});
+      }
+      
       stopCamera();
       
       // Unlock orientation when scanner closes
@@ -93,18 +106,16 @@ const VinScanner: React.FC<VinScannerProps> = ({
   }, []);
 
   // Helper function to calculate VIN-optimized frame dimensions
-  const calculateFrameDimensions = (videoWidth: number, videoHeight: number) => {
-    const VIN_CHARACTERS = 17;
-    const CHAR_ASPECT_RATIO = 0.65;
-    const CHAR_SPACING_FACTOR = 1.05;
-
-    const guideWidth = videoWidth * 0.95;
-    const charWidth = guideWidth / (VIN_CHARACTERS * CHAR_SPACING_FACTOR);
-    const charHeight = charWidth / CHAR_ASPECT_RATIO;
-    const guideHeight = charHeight * 0.8;
+  // Optimized 1:8 aspect ratio: wide enough for full VIN, tall enough for reliable OCR
+  const calculateFrameDimensions = (videoWidth: number) => {
+    const ASPECT_RATIO = 1 / 8;
+    const widthPercent = 90;
+    
+    const guideWidth = videoWidth * (widthPercent / 100);
+    const guideHeight = guideWidth * ASPECT_RATIO;
 
     return {
-      widthPercent: 95,
+      widthPercent,
       heightPx: Math.round(guideHeight)
     };
   };
@@ -116,10 +127,9 @@ const VinScanner: React.FC<VinScannerProps> = ({
 
     const handleMetadataLoaded = () => {
       const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
       
-      if (videoWidth > 0 && videoHeight > 0) {
-        const dimensions = calculateFrameDimensions(videoWidth, videoHeight);
+      if (videoWidth > 0) {
+        const dimensions = calculateFrameDimensions(videoWidth);
         setFrameDimensions(dimensions);
         setIsFrameReady(true);
       }
@@ -173,8 +183,55 @@ const VinScanner: React.FC<VinScannerProps> = ({
         videoRef.current.srcObject = mediaStream;
       }
       setStream(mediaStream);
+      
+      // Check camera capabilities for zoom and torch
+      const track = mediaStream.getVideoTracks()[0];
+      if (track && typeof track.getCapabilities === 'function') {
+        const capabilities = track.getCapabilities() as any;
+        
+        // Check zoom support
+        if (capabilities.zoom) {
+          setZoomCapabilities({
+            min: capabilities.zoom.min || 1,
+            max: capabilities.zoom.max || 1,
+            step: capabilities.zoom.step || 0.1
+          });
+          setZoomLevel(capabilities.zoom.min || 1);
+        }
+        
+        // Check torch support
+        if (capabilities.torch) {
+          setTorchSupported(true);
+        }
+      }
     } catch (error) {
       console.error('Camera access error:', error);
+    }
+  };
+  
+  const handleZoomChange = async (newZoom: number) => {
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+    
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: newZoom } as any] });
+      setZoomLevel(newZoom);
+    } catch (error) {
+      console.warn('Zoom failed:', error);
+    }
+  };
+  
+  const toggleTorch = async () => {
+    if (!stream || !torchSupported) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+    
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !torchOn } as any] });
+      setTorchOn(!torchOn);
+    } catch (error) {
+      console.warn('Torch failed:', error);
     }
   };
 
@@ -482,6 +539,41 @@ const VinScanner: React.FC<VinScannerProps> = ({
         </>
 
       )}
+
+        {/* Camera Controls: Zoom + Torch */}
+        {isFrameReady && (
+          <div className="absolute bottom-14 left-0 right-0 flex items-center justify-center gap-3 px-4">
+            {/* Flashlight Button */}
+            {torchSupported && (
+              <Button
+                variant={torchOn ? "default" : "outline"}
+                size="icon"
+                onClick={toggleTorch}
+                className={`h-10 w-10 rounded-full ${torchOn ? 'bg-yellow-500 hover:bg-yellow-600 border-yellow-600' : 'bg-background/70 backdrop-blur'}`}
+              >
+                {torchOn ? <Sun className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
+              </Button>
+            )}
+            
+            {/* Zoom Slider */}
+            {zoomCapabilities && zoomCapabilities.max > zoomCapabilities.min && (
+              <div className="flex items-center gap-2 bg-background/70 backdrop-blur px-3 py-2 rounded-full">
+                <ZoomOut className="h-4 w-4 text-muted-foreground" />
+                <input
+                  type="range"
+                  min={zoomCapabilities.min}
+                  max={zoomCapabilities.max}
+                  step={zoomCapabilities.step}
+                  value={zoomLevel}
+                  onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                  className="w-24 h-2 accent-primary"
+                />
+                <ZoomIn className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground w-8">{zoomLevel.toFixed(1)}x</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {isScanning && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-2 py-1 rounded bg-background/70 backdrop-blur text-muted-foreground pointer-events-none">
