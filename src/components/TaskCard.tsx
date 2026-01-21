@@ -16,7 +16,7 @@ import billBackground from '@/assets/bill-background.jpg';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { photoStorageService } from '@/services/photoStorageService';
-import { indexedDB } from '@/lib/indexedDB';
+import { capacitorStorage } from '@/lib/capacitorStorage';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -807,7 +807,7 @@ export const TaskCard = ({
 
       if (photo.base64String) {
         // Fetch fresh task data from storage to avoid stale state issues
-        const currentTasks = await indexedDB.getTasks();
+        const currentTasks = await capacitorStorage.getTasks();
         const freshTask = currentTasks.find(t => t.id === task.id);
         
         if (!freshTask || !freshTask.activeSessionId) {
