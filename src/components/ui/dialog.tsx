@@ -9,12 +9,18 @@ const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 
 const DialogPortal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [container, setContainer] = React.useState<HTMLElement | null>(null);
+  const [container, setContainer] = React.useState<HTMLElement | null | undefined>(undefined);
   React.useEffect(() => {
     const el = document.querySelector(".mobile-phone-frame") as HTMLElement | null;
+    // If .mobile-phone-frame exists, use it; otherwise use null (document.body)
     setContainer(el);
   }, []);
-  return <DialogPrimitive.Portal container={container}>{children}</DialogPrimitive.Portal>;
+  
+  // Wait for useEffect to run before rendering
+  if (container === undefined) return null;
+  
+  // Pass null to use document.body (native/standalone), or the frame element (preview)
+  return <DialogPrimitive.Portal container={container || undefined}>{children}</DialogPrimitive.Portal>;
 };
 
 const DialogClose = DialogPrimitive.Close;
