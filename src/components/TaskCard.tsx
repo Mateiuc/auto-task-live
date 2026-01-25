@@ -17,6 +17,9 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { photoStorageService } from '@/services/photoStorageService';
 import { capacitorStorage } from '@/lib/capacitorStorage';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { ShareBillDialog } from './ShareBillDialog';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -54,6 +57,14 @@ export const TaskCard = ({
   const [currentElapsed, setCurrentElapsed] = useState(0);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [billShareData, setBillShareData] = useState<{
+    pdfUri: string;
+    clientName: string;
+    vehicleInfo: string;
+    totalAmount: string;
+    clientPhone?: string;
+  } | null>(null);
   const isActive = ['pending', 'in-progress', 'paused'].includes(task.status);
   const isCompleted = ['completed', 'billed', 'paid'].includes(task.status);
 
@@ -514,16 +525,27 @@ export const TaskCard = ({
         }
       }
 
-      // Save PDF
-      const clientName = sanitizeForFilename(client?.name);
+      // Generate filename and return PDF data for sharing
+      const clientNameSafe = sanitizeForFilename(client?.name);
       const carBrand = sanitizeForFilename(vehicle?.make);
       const workStartDate = formatDateForFilename(task.createdAt);
-      const fileName = `bill_${clientName}_${carBrand}_${workStartDate}.pdf`;
-      doc.save(fileName);
-      toast({
-        title: "Bill Generated",
-        description: `Invoice saved as ${fileName}`
-      });
+      const fileName = `bill_${clientNameSafe}_${carBrand}_${workStartDate}.pdf`;
+      
+      // Get vehicle info for share message
+      const vehicleInfoStr = [vehicle?.year, vehicle?.make, vehicle?.model]
+        .filter(Boolean)
+        .join(' ') || 'your vehicle';
+      
+      // Return PDF data instead of saving directly
+      const pdfBase64 = doc.output('datauristring').split(',')[1];
+      return {
+        pdfBase64,
+        fileName,
+        totalCost,
+        vehicleInfo: vehicleInfoStr,
+        clientName: client?.name || 'Customer',
+        clientPhone: client?.phone,
+      };
     } catch (error) {
       console.error('PDF generation error:', error);
       toast({
@@ -531,6 +553,7 @@ export const TaskCard = ({
         description: "There was an error creating the PDF. Please try again.",
         variant: "destructive"
       });
+      return null;
     }
   };
 
@@ -781,9 +804,108 @@ export const TaskCard = ({
     }
   };
 
-  const handleGenerateBill = () => {
-    generateBillingPDF();
+  const handleGenerateBill = async () => {
+    const result = await generateBillingPDF();
+    if (!result) return;
+
+    const { pdfBase64, fileName, totalCost: total, vehicleInfo: vInfo, clientName: cName, clientPhone: cPhone } = result;
+
+    // Mark as billed first
     onMarkBilled(task.id);
+
+    // Check if we're on a native platform
+    const isNative = Capacitor.isNativePlatform();
+
+    if (isNative) {
+      try {
+        // Save PDF to cache for sharing
+        await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache,
+        });
+
+        const fileUri = await Filesystem.getUri({
+          path: fileName,
+          directory: Directory.Cache,
+        });
+
+        // Show share dialog
+        setBillShareData({
+          pdfUri: fileUri.uri,
+          clientName: cName,
+          vehicleInfo: vInfo,
+          totalAmount: formatCurrency(total),
+          clientPhone: cPhone,
+        });
+        setShowShareDialog(true);
+      } catch (error) {
+        console.error('Error preparing bill for sharing:', error);
+        // Fall back to just downloading
+        const doc = new jsPDF();
+        // Can't recover easily, just show error
+        toast({
+          title: "Share Failed",
+          description: "Bill was marked as billed but sharing failed. Please try the Share option from the menu.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      // Web: just download the PDF
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${pdfBase64}`;
+      link.download = fileName;
+      link.click();
+      
+      toast({
+        title: "Bill Generated",
+        description: `Invoice saved as ${fileName}`
+      });
+
+      // Still show share dialog for copy message option
+      setBillShareData({
+        pdfUri: '',
+        clientName: cName,
+        vehicleInfo: vInfo,
+        totalAmount: formatCurrency(total),
+        clientPhone: cPhone,
+      });
+      setShowShareDialog(true);
+    }
+  };
+
+  const handleShareBill = async (message: string) => {
+    if (!billShareData) return;
+
+    const isNative = Capacitor.isNativePlatform();
+
+    try {
+      if (isNative && billShareData.pdfUri) {
+        await Share.share({
+          title: 'Bill',
+          text: message,
+          url: billShareData.pdfUri,
+          dialogTitle: 'Share Bill',
+        });
+      } else {
+        // Web fallback: just copy the message
+        await navigator.clipboard.writeText(message);
+        toast({
+          title: 'Message Copied',
+          description: 'Paste it in your messaging app along with the downloaded PDF.',
+        });
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      toast({
+        title: 'Share Failed',
+        description: 'Could not share the bill. Please try again.',
+        variant: 'destructive',
+      });
+    }
+
+    setShowShareDialog(false);
+    setBillShareData(null);
   };
 
   // Handle capturing photo for active session
@@ -1130,5 +1252,18 @@ export const TaskCard = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ShareBillDialog
+        open={showShareDialog}
+        onClose={() => {
+          setShowShareDialog(false);
+          setBillShareData(null);
+        }}
+        clientName={billShareData?.clientName || ''}
+        clientPhone={billShareData?.clientPhone}
+        vehicleInfo={billShareData?.vehicleInfo || ''}
+        totalAmount={billShareData?.totalAmount || ''}
+        onShare={handleShareBill}
+      />
     </Card>;
 };
