@@ -17,8 +17,11 @@ interface TesseractParams {
 const cleanText = (text: string): string => {
   return text
     .toUpperCase()
+    // Convert common OCR misreads to valid VIN characters FIRST
+    .replace(/[OÖØ]/g, '0')    // Letter O → Zero (O is invalid in VIN)
+    .replace(/[IÏÎ]/g, '1')    // Letter I → One (I is invalid in VIN)
+    .replace(/Q/g, '0')        // Q → Zero (Q is invalid in VIN)
     .replace(/Ü/g, 'U')
-    .replace(/Ö/g, 'O')
     .replace(/Ä/g, 'A')
     .replace(/[^A-HJ-NPR-Z0-9\s\n]/g, '') // Keep only valid VIN chars + whitespace
     .trim();
@@ -53,33 +56,36 @@ export const readVinWithTesseract = async ({
 
     // Clean and process the extracted text
     const cleanedText = cleanText(text);
-    const lines = cleanedText.split(/[\n\s]+/).filter(line => line.length >= 17);
-
+    
     // Extract potential VIN candidates
     const allCandidates: Array<{ vin: string; valid: boolean; checksum: boolean }> = [];
     
-    for (const line of lines) {
-      // Try to find 17-character sequences
-      for (let i = 0; i <= line.length - 17; i++) {
-        const potentialVin = line.substring(i, i + 17);
-        
-        // Generate candidates including OCR confusion corrections
-        const candidates = generateVinCandidates(potentialVin);
-        
-        for (const candidate of candidates) {
-          const isValid = validateVin(candidate);
-          const hasChecksum = validateVinStrict(candidate);
-          
-          // Avoid duplicates
-          if (!allCandidates.find(c => c.vin === candidate)) {
-            allCandidates.push({
-              vin: candidate,
-              valid: isValid,
-              checksum: hasChecksum
-            });
-          }
+    // Helper to add candidates without duplicates
+    const addCandidate = (potentialVin: string) => {
+      const candidates = generateVinCandidates(potentialVin);
+      for (const candidate of candidates) {
+        if (!allCandidates.find(c => c.vin === candidate)) {
+          allCandidates.push({
+            vin: candidate,
+            valid: validateVin(candidate),
+            checksum: validateVinStrict(candidate)
+          });
         }
       }
+    };
+    
+    // Method 1: Split by whitespace and search lines >= 17 chars
+    const lines = cleanedText.split(/[\n\s]+/).filter(line => line.length >= 17);
+    for (const line of lines) {
+      for (let i = 0; i <= line.length - 17; i++) {
+        addCandidate(line.substring(i, i + 17));
+      }
+    }
+    
+    // Method 2: Sliding window on full text with all whitespace removed
+    const fullText = cleanedText.replace(/[\s\n]+/g, '');
+    for (let i = 0; i <= fullText.length - 17; i++) {
+      addCandidate(fullText.substring(i, i + 17));
     }
 
     // Find best candidate (valid checksum preferred)

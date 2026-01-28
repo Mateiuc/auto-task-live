@@ -68,13 +68,15 @@ export const readVinWithOcrSpace = async ({
     const parsedText = data.ParsedResults?.[0]?.ParsedText || '';
     
     // Fix common OCR character recognition errors
-    // OCR often misreads VIN characters due to image quality/angle
+    // Convert OCR misreads to valid VIN characters BEFORE filtering
     const cleanedText = parsedText
+      .toUpperCase()
+      .replace(/[OÖóòôõøØ]/g, '0')      // Letter O → Zero (O is invalid in VIN)
+      .replace(/[IÏïîíìÌÍÎ]/g, '1')     // Letter I → One (I is invalid in VIN)
+      .replace(/Q/g, '0')               // Q → Zero (Q is invalid in VIN)
       .replace(/[ÜúùûµÙÛ]/g, 'U')       // Ü → U
-      .replace(/[ÖóòôõøØ]/g, 'O')       // Ö → O
       .replace(/[ÄáàâãÅåÀÁÂÃ]/g, 'A')   // Ä → A
       .replace(/[ÉéèêëÈÊË]/g, 'E')      // É → E
-      .replace(/[ÏïîíìÌÍÎ]/g, 'I')      // Ï → I
       .replace(/[^A-HJ-NPR-Z0-9\s\r\n]/g, ''); // Keep line breaks, remove invalid chars
     
     // Split by lines and look for VIN on each line
