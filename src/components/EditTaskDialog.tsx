@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Plus } from 'lucide-react';
-import { formatDuration, formatCurrency, formatTime, formatDateTimeForInput } from '@/lib/formatTime';
+import { formatDuration, formatCurrency, formatTime, formatTimeForInput, formatDateForInput } from '@/lib/formatTime';
 import { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
@@ -60,7 +60,8 @@ export const EditTaskDialog = ({
     sessionId: string;
     periodId: string;
     field: 'startTime' | 'endTime';
-    value: string;
+    dateValue: string;
+    timeValue: string;
   } | null>(null);
 
   const handleDeletePeriod = (sessionId: string, periodId: string) => {
@@ -79,22 +80,44 @@ export const EditTaskDialog = ({
     sessionId: string, 
     periodId: string, 
     field: 'startTime' | 'endTime', 
-    value: string
+    part: 'date' | 'time',
+    value: string,
+    currentPeriod: WorkPeriod
   ) => {
-    setEditingPeriod({ sessionId, periodId, field, value });
+    // Get current values from either editing state or the period
+    const currentDate = editingPeriod?.sessionId === sessionId && 
+                        editingPeriod?.periodId === periodId && 
+                        editingPeriod?.field === field
+      ? editingPeriod.dateValue
+      : formatDateForInput(currentPeriod[field]);
+    
+    const currentTime = editingPeriod?.sessionId === sessionId && 
+                        editingPeriod?.periodId === periodId && 
+                        editingPeriod?.field === field
+      ? editingPeriod.timeValue
+      : formatTimeForInput(currentPeriod[field]);
+    
+    setEditingPeriod({
+      sessionId,
+      periodId,
+      field,
+      dateValue: part === 'date' ? value : currentDate,
+      timeValue: part === 'time' ? value : currentTime
+    });
   };
 
   const handlePeriodTimeBlur = () => {
     if (!editingPeriod) return;
     
-    const { sessionId, periodId, field, value } = editingPeriod;
+    const { sessionId, periodId, field, dateValue, timeValue } = editingPeriod;
     
     setSessions(prev => prev.map(session => {
       if (session.id === sessionId) {
         const updatedPeriods = session.periods.map(period => {
           if (period.id === periodId) {
-            // Parse datetime-local value (format: YYYY-MM-DDTHH:MM)
-            const newDate = new Date(value);
+            // Combine date and time values into a full datetime
+            const combinedDateTime = `${dateValue}T${timeValue}`;
+            const newDate = new Date(combinedDateTime);
             
             // Validate datetime input
             if (isNaN(newDate.getTime())) {
@@ -496,35 +519,65 @@ export const EditTaskDialog = ({
                     <div className="grid grid-cols-2 gap-1 px-1">
                       <div>
                         <Label className="text-[10px]">Start</Label>
-                        <Input 
-                          type="datetime-local" 
-                          value={
-                            editingPeriod?.sessionId === session.id && 
-                            editingPeriod?.periodId === period.id && 
-                            editingPeriod?.field === 'startTime'
-                              ? editingPeriod.value
-                              : formatDateTimeForInput(period.startTime)
-                          }
-                          onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', e.target.value)}
-                          onBlur={handlePeriodTimeBlur}
-                          className="h-8 text-xs" 
-                        />
+                        <div className="flex gap-1">
+                          <Input 
+                            type="date" 
+                            value={
+                              editingPeriod?.sessionId === session.id && 
+                              editingPeriod?.periodId === period.id && 
+                              editingPeriod?.field === 'startTime'
+                                ? editingPeriod.dateValue
+                                : formatDateForInput(period.startTime)
+                            }
+                            onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', 'date', e.target.value, period)}
+                            onBlur={handlePeriodTimeBlur}
+                            className="h-8 text-xs flex-1 min-w-0" 
+                          />
+                          <Input 
+                            type="time" 
+                            value={
+                              editingPeriod?.sessionId === session.id && 
+                              editingPeriod?.periodId === period.id && 
+                              editingPeriod?.field === 'startTime'
+                                ? editingPeriod.timeValue
+                                : formatTimeForInput(period.startTime)
+                            }
+                            onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', 'time', e.target.value, period)}
+                            onBlur={handlePeriodTimeBlur}
+                            className="h-8 text-xs w-20" 
+                          />
+                        </div>
                       </div>
                       <div>
                         <Label className="text-[10px]">End</Label>
-                        <Input 
-                          type="datetime-local" 
-                          value={
-                            editingPeriod?.sessionId === session.id && 
-                            editingPeriod?.periodId === period.id && 
-                            editingPeriod?.field === 'endTime'
-                              ? editingPeriod.value
-                              : formatDateTimeForInput(period.endTime)
-                          }
-                          onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', e.target.value)}
-                          onBlur={handlePeriodTimeBlur}
-                          className="h-8 text-xs" 
-                        />
+                        <div className="flex gap-1">
+                          <Input 
+                            type="date" 
+                            value={
+                              editingPeriod?.sessionId === session.id && 
+                              editingPeriod?.periodId === period.id && 
+                              editingPeriod?.field === 'endTime'
+                                ? editingPeriod.dateValue
+                                : formatDateForInput(period.endTime)
+                            }
+                            onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', 'date', e.target.value, period)}
+                            onBlur={handlePeriodTimeBlur}
+                            className="h-8 text-xs flex-1 min-w-0" 
+                          />
+                          <Input 
+                            type="time" 
+                            value={
+                              editingPeriod?.sessionId === session.id && 
+                              editingPeriod?.periodId === period.id && 
+                              editingPeriod?.field === 'endTime'
+                                ? editingPeriod.timeValue
+                                : formatTimeForInput(period.endTime)
+                            }
+                            onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', 'time', e.target.value, period)}
+                            onBlur={handlePeriodTimeBlur}
+                            className="h-8 text-xs w-20" 
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>)}
