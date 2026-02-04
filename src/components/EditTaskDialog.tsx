@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, CalendarDays } from 'lucide-react';
 import { formatDuration, formatCurrency, formatTime, formatTimeForInput } from '@/lib/formatTime';
 import { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -545,11 +545,12 @@ export const EditTaskDialog = ({
                                  onOpenChange={(open) => !open && setEditingPeriodDate(null)}>
                           <PopoverTrigger asChild>
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm" 
-                              className="h-5 px-1 text-[10px]"
+                              className="h-6 px-2 text-xs gap-1"
                               onClick={() => setEditingPeriodDate({ sessionId: session.id, periodId: period.id })}
                             >
+                              <CalendarDays className="h-3 w-3" />
                               {!isNaN(period.startTime.getTime()) 
                                 ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(period.startTime)
                                 : 'Invalid Date'}
