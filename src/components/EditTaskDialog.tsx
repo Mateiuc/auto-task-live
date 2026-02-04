@@ -4,12 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, Plus, CalendarDays } from 'lucide-react';
-import { formatDuration, formatCurrency, formatTime, formatTimeForInput } from '@/lib/formatTime';
+import { Trash2, Plus } from 'lucide-react';
+import { formatDuration, formatCurrency, formatTime, formatDateTimeForInput } from '@/lib/formatTime';
 import { useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
 import { getSessionColorScheme } from '@/lib/sessionColors';
 interface EditTaskDialogProps {
@@ -65,10 +63,6 @@ export const EditTaskDialog = ({
     value: string;
   } | null>(null);
 
-  const [editingPeriodDate, setEditingPeriodDate] = useState<{
-    sessionId: string;
-    periodId: string;
-  } | null>(null);
   const handleDeletePeriod = (sessionId: string, periodId: string) => {
     setSessions(prev => prev.map(session => {
       if (session.id === sessionId) {
@@ -99,29 +93,18 @@ export const EditTaskDialog = ({
       if (session.id === sessionId) {
         const updatedPeriods = session.periods.map(period => {
           if (period.id === periodId) {
-            const [hours, minutes] = value.split(':').map(Number);
+            // Parse datetime-local value (format: YYYY-MM-DDTHH:MM)
+            const newDate = new Date(value);
             
-            // Validate time input
-            if (isNaN(hours) || isNaN(minutes)) {
-              return period;
-            }
-            
-            // FIX: Preserve the original date portion, only update time
-            const currentDate = new Date(period[field]);
-            
-            // Validate that the base date is valid
-            if (isNaN(currentDate.getTime())) {
+            // Validate datetime input
+            if (isNaN(newDate.getTime())) {
               toast({
-                title: "Invalid date",
-                description: "Could not update the time. Please try again.",
+                title: "Invalid date/time",
+                description: "Could not update. Please try again.",
                 variant: "destructive"
               });
               return period;
             }
-            
-            // Create new date preserving the original date portion
-            const newDate = new Date(currentDate);
-            newDate.setHours(hours, minutes, 0, 0);
             
             const updated = {
               ...period,
@@ -186,40 +169,6 @@ export const EditTaskDialog = ({
     });
   };
 
-  const handleChangePeriodDate = (sessionId: string, periodId: string, newDate: Date) => {
-    setSessions(prev => prev.map(session => {
-      if (session.id === sessionId) {
-        const updatedPeriods = session.periods.map(period => {
-          if (period.id === periodId) {
-            // Preserve the time but change the date
-            const newStartTime = new Date(newDate);
-            newStartTime.setHours(period.startTime.getHours(), period.startTime.getMinutes(), 0, 0);
-            
-            const newEndTime = new Date(newDate);
-            newEndTime.setHours(period.endTime.getHours(), period.endTime.getMinutes(), 0, 0);
-            
-            return {
-              ...period,
-              startTime: newStartTime,
-              endTime: newEndTime
-            };
-          }
-          return period;
-        });
-        return {
-          ...session,
-          periods: updatedPeriods
-        };
-      }
-      return session;
-    }));
-    
-    setEditingPeriodDate(null);
-    toast({
-      title: "Date updated",
-      description: "Period date changed successfully"
-    });
-  };
   const handleDeletePart = (sessionId: string, partIndex: number) => {
     setSessions(prev => prev.map(session => {
       if (session.id === sessionId) {
@@ -539,52 +488,22 @@ export const EditTaskDialog = ({
                 
                 {session.periods.map((period, periodIndex) => <div key={period.id} className={`${sessionColorScheme.period} border p-1 rounded space-y-1`}>
                     <div className="flex items-center justify-between px-1 py-0.5">
-                      <div className="flex items-center gap-1">
-                        <div className="font-medium text-xs">Period {periodIndex + 1}: {formatDuration(period.duration)}</div>
-                        <Popover open={editingPeriodDate?.sessionId === session.id && editingPeriodDate?.periodId === period.id}
-                                 onOpenChange={(open) => !open && setEditingPeriodDate(null)}>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-6 px-2 text-xs gap-1"
-                              onClick={() => setEditingPeriodDate({ sessionId: session.id, periodId: period.id })}
-                            >
-                              <CalendarDays className="h-3 w-3" />
-                              {!isNaN(period.startTime.getTime()) 
-                                ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(period.startTime)
-                                : 'Invalid Date'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={period.startTime}
-                              onSelect={(date) => {
-                                if (date) {
-                                  handleChangePeriodDate(session.id, period.id, date);
-                                }
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                      <div className="font-medium text-xs">Period {periodIndex + 1}: {formatDuration(period.duration)}</div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeletePeriod(session.id, period.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-1 px-1">
                       <div>
-                        <Label className="text-[10px]">Start Time</Label>
+                        <Label className="text-[10px]">Start</Label>
                         <Input 
-                          type="time" 
+                          type="datetime-local" 
                           value={
                             editingPeriod?.sessionId === session.id && 
                             editingPeriod?.periodId === period.id && 
                             editingPeriod?.field === 'startTime'
                               ? editingPeriod.value
-                              : formatTimeForInput(period.startTime)
+                              : formatDateTimeForInput(period.startTime)
                           }
                           onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', e.target.value)}
                           onBlur={handlePeriodTimeBlur}
@@ -592,15 +511,15 @@ export const EditTaskDialog = ({
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px]">End Time</Label>
+                        <Label className="text-[10px]">End</Label>
                         <Input 
-                          type="time" 
+                          type="datetime-local" 
                           value={
                             editingPeriod?.sessionId === session.id && 
                             editingPeriod?.periodId === period.id && 
                             editingPeriod?.field === 'endTime'
                               ? editingPeriod.value
-                              : formatTimeForInput(period.endTime)
+                              : formatDateTimeForInput(period.endTime)
                           }
                           onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', e.target.value)}
                           onBlur={handlePeriodTimeBlur}
