@@ -64,7 +64,7 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
       <DialogContent className="w-full h-full m-0 p-0 rounded-none flex flex-col bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <header className="border-b bg-green-500/10 backdrop-blur-sm shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
-            <DialogTitle className="text-base font-bold text-primary">Complete Work Session</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-primary">Complete Work Session</DialogTitle>
           </div>
         </header>
 

@@ -480,7 +480,7 @@ export const EditTaskDialog = ({
             
             return <div key={session.id} className={`${sessionColorScheme.session} border rounded p-1 space-y-1`}>
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm">Session {sessionIndex + 1}</h4>
+              <h4 className="font-bold text-base">Session {sessionIndex + 1}</h4>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">{formattedDate}</span>
                   <Button 
@@ -511,14 +511,14 @@ export const EditTaskDialog = ({
                 
                 {session.periods.map((period, periodIndex) => <div key={period.id} className={`${sessionColorScheme.period} border p-1 rounded space-y-1`}>
                     <div className="flex items-center justify-between px-1 py-0.5">
-                      <div className="font-medium text-xs">Period {periodIndex + 1}: {formatDuration(period.duration)}</div>
+                      <div className="font-semibold text-sm">Period {periodIndex + 1}: {formatDuration(period.duration)}</div>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeletePeriod(session.id, period.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-1 px-1">
                       <div>
-                        <Label className="text-[10px]">Start</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide">Start</Label>
                         <div className="flex gap-1">
                           <Input 
                             type="date" 
@@ -531,7 +531,7 @@ export const EditTaskDialog = ({
                             }
                             onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', 'date', e.target.value, period)}
                             onBlur={handlePeriodTimeBlur}
-                            className="h-8 text-xs flex-1 min-w-0" 
+                            className="h-9 text-sm font-medium flex-1 min-w-0" 
                           />
                           <Input 
                             type="time" 
@@ -544,12 +544,12 @@ export const EditTaskDialog = ({
                             }
                             onChange={e => handlePeriodTimeChange(session.id, period.id, 'startTime', 'time', e.target.value, period)}
                             onBlur={handlePeriodTimeBlur}
-                            className="h-8 text-xs w-20" 
+                            className="h-9 text-sm font-medium w-20" 
                           />
                         </div>
                       </div>
                       <div>
-                        <Label className="text-[10px]">End</Label>
+                        <Label className="text-xs font-semibold uppercase tracking-wide">End</Label>
                         <div className="flex gap-1">
                           <Input 
                             type="date" 
@@ -562,7 +562,7 @@ export const EditTaskDialog = ({
                             }
                             onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', 'date', e.target.value, period)}
                             onBlur={handlePeriodTimeBlur}
-                            className="h-8 text-xs flex-1 min-w-0" 
+                            className="h-9 text-sm font-medium flex-1 min-w-0" 
                           />
                           <Input 
                             type="time" 
@@ -575,7 +575,7 @@ export const EditTaskDialog = ({
                             }
                             onChange={e => handlePeriodTimeChange(session.id, period.id, 'endTime', 'time', e.target.value, period)}
                             onBlur={handlePeriodTimeBlur}
-                            className="h-8 text-xs w-20" 
+                            className="h-9 text-sm font-medium w-20" 
                           />
                         </div>
                       </div>
