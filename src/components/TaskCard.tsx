@@ -1015,7 +1015,7 @@ export const TaskCard = ({
         <div className="p-3 py-0">
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
-              <p className="text-sm font-medium">
+              <p className="text-sm font-semibold">
                 {vehicle?.year} {vehicle?.make} {vehicle?.model}
               </p>
               <p className="text-xs text-muted-foreground mt-1">VIN: {vehicle?.vin}</p>
@@ -1091,16 +1091,16 @@ export const TaskCard = ({
 
           <div className="grid grid-cols-3 gap-2 mb-2 text-sm">
             <div className="text-center">
-              <div className="text-muted-foreground text-xs mb-1">{isActive ? 'Period' : 'Total'}</div>
-              <div className="font-semibold text-xs">{formatDuration(displayTime)}</div>
+              <div className="text-muted-foreground text-xs font-medium mb-1">{isActive ? 'Period' : 'Total'}</div>
+              <div className="font-bold text-sm">{formatDuration(displayTime)}</div>
             </div>
             <div className="text-center">
-              <div className="text-muted-foreground text-xs mb-1">Sessions</div>
-              <div className="font-semibold text-xs">{(task.sessions || []).length}</div>
+              <div className="text-muted-foreground text-xs font-medium mb-1">Sessions</div>
+              <div className="font-bold text-sm">{(task.sessions || []).length}</div>
             </div>
             <div className="text-center">
-              <div className="text-muted-foreground text-xs mb-1">Cost</div>
-              <div className="font-semibold text-xs text-primary">{formatCurrency(totalCost)}</div>
+              <div className="text-muted-foreground text-xs font-medium mb-1">Cost</div>
+              <div className="font-bold text-sm text-primary">{formatCurrency(totalCost)}</div>
             </div>
           </div>
 
@@ -1155,7 +1155,7 @@ export const TaskCard = ({
           <div className="px-4 pb-4 space-y-1 border-t pt-3 text-sm">
             {/* Unified Sessions View */}
             <div>
-              <h4 className="font-semibold text-xs mb-1">Work Sessions ({(task.sessions || []).length})</h4>
+              <h4 className="font-bold text-sm mb-1">Work Sessions ({(task.sessions || []).length})</h4>
               {(task.sessions || []).map((session, sessionIndex) => {
               const sessionDuration = (session.periods || []).reduce((sum, p) => sum + p.duration, 0);
               
@@ -1178,14 +1178,14 @@ export const TaskCard = ({
               });
               
               return <div key={session.id} className={`${colorScheme.session} border rounded-lg p-2 mb-1`}>
-                    <div className="text-[11px] font-medium mb-1">
+                    <div className="text-xs font-semibold mb-1">
                       Session {sessionIndex + 1} ({formatDuration(sessionDuration)})
                     </div>
                     
                     {/* Timeline events */}
                     <div className="ml-2 mb-1 space-y-0.5">
                       {allEvents.map((event, idx) => (
-                        <div key={idx} className="text-[10px]">
+                        <div key={idx} className="text-xs font-medium">
                           <span className={
                             event.type === 'started' ? 'text-green-600 dark:text-green-400' : 
                             event.type === 'resumed' ? 'text-blue-600 dark:text-blue-400' : 
@@ -1205,18 +1205,18 @@ export const TaskCard = ({
                       ))}
                     </div>
                     
-                    {session.description && <div className="text-[10px] text-muted-foreground mb-1">{session.description}</div>}
+                    {session.description && <div className="text-xs text-muted-foreground mb-1">{session.description}</div>}
                     
                     {session.parts && session.parts.length > 0 && <div className="space-y-0.5">
-                        <div className="font-medium text-[10px]">Parts Used:</div>
-                        {session.parts.map((part, i) => <div key={i} className="flex justify-between text-[10px] text-muted-foreground ml-2">
+                        <div className="font-semibold text-xs">Parts Used:</div>
+                        {session.parts.map((part, i) => <div key={i} className="flex justify-between text-xs text-muted-foreground ml-2">
                             <span>{part.quantity}x {part.name}</span>
                             <span>{formatCurrency(part.price * part.quantity)}</span>
                           </div>)}
                        </div>}
                     
                     {session.photos && session.photos.length > 0 && (
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
                         <CameraIcon className="h-3 w-3" />
                         {session.photos.length} photo{session.photos.length > 1 ? 's' : ''}
                       </div>

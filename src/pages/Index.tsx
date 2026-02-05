@@ -559,9 +559,9 @@ const Index = () => {
 
   return (
     <div className="h-dvh overflow-y-auto bg-background">
-      <header className="border-b bg-primary/10 backdrop-blur-sm shadow-sm sticky top-0 z-10">
+      <header className="border-b bg-primary/20 backdrop-blur-sm shadow-md sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center justify-between">
-          <h1 className="text-base font-bold text-primary">Auto Task Tracker</h1>
+          <h1 className="text-lg font-bold text-primary">Auto Task Tracker</h1>
           <div className="flex items-center gap-2">
             <CloudSyncIndicator onClick={() => setShowSettings(true)} />
             <Button variant="default" size="icon" onClick={() => setShowAddVehicle(true)} className="h-8 w-8">
@@ -592,7 +592,7 @@ const Index = () => {
                 return (
                   <div key={clientId} className="rounded-lg p-4 bg-muted/30 space-y-3">
                     <div className="mb-3">
-                      <h2 className="text-lg font-semibold">
+                      <h2 className="text-xl font-bold">
                         {client?.name || 'Unknown Client'} 
                         <span className="text-sm font-normal text-muted-foreground ml-2">
                           ({vehicles.filter(v => v.clientId === clientId).length} vehicle{vehicles.filter(v => v.clientId === clientId).length !== 1 ? 's' : ''})
@@ -638,7 +638,7 @@ const Index = () => {
                 return (
                   <div key={clientId} className="rounded-lg p-4 bg-muted/30 space-y-3">
                     <div className="mb-3">
-                      <h2 className="text-lg font-semibold">
+                      <h2 className="text-xl font-bold">
                         {client?.name || 'Unknown Client'} 
                         <span className="text-sm font-normal text-muted-foreground ml-2">
                           ({vehicles.filter(v => v.clientId === clientId).length} vehicle{vehicles.filter(v => v.clientId === clientId).length !== 1 ? 's' : ''})

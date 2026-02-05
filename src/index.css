@@ -24,7 +24,7 @@ All colors MUST be HSL.
     --secondary-foreground: 215 25% 15%;
 
     --muted: 210 15% 92%;
-    --muted-foreground: 215 15% 45%;
+    --muted-foreground: 215 20% 35%;
 
     --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
@@ -38,15 +38,15 @@ All colors MUST be HSL.
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
+    --border: 214 25% 80%;
+    --input: 214 25% 80%;
     --ring: 210 95% 35%;
 
     --radius: 0.75rem;
 
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.15);
     --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.1);
   }
 
@@ -67,7 +67,7 @@ All colors MUST be HSL.
     --secondary-foreground: 210 20% 95%;
 
     --muted: 215 20% 18%;
-    --muted-foreground: 215 15% 65%;
+    --muted-foreground: 215 20% 75%;
 
     --accent: 25 95% 53%;
     --accent-foreground: 0 0% 100%;
@@ -81,8 +81,8 @@ All colors MUST be HSL.
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 215 20% 22%;
-    --input: 215 20% 22%;
+    --border: 215 25% 30%;
+    --input: 215 25% 30%;
     --ring: 210 95% 45%;
 
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.15);

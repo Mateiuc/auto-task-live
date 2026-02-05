@@ -227,7 +227,7 @@ export const SettingsDialog = ({
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
-            <DialogTitle className="text-base font-bold text-primary">{getDialogTitle()}</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-primary">{getDialogTitle()}</DialogTitle>
           </div>
         </header>
 
@@ -236,7 +236,7 @@ export const SettingsDialog = ({
             <div className="space-y-2">
               <Button
                 variant="outline"
-                className="w-full justify-between h-auto py-4 bg-primary/10 hover:bg-primary/20 border-primary/20"
+                className="w-full justify-between h-auto py-4 bg-primary/20 hover:bg-primary/30 border-primary/30 font-semibold"
                 onClick={() => setCurrentView('settings')}
               >
                 <span>Settings</span>
@@ -244,7 +244,7 @@ export const SettingsDialog = ({
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-between h-auto py-4 bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/20"
+                className="w-full justify-between h-auto py-4 bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/30 font-semibold"
                 onClick={() => setCurrentView('billed')}
               >
                 <span>View Billed Tasks</span>
@@ -255,7 +255,7 @@ export const SettingsDialog = ({
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-between h-auto py-4 bg-green-500/10 hover:bg-green-500/20 border-green-500/20"
+                className="w-full justify-between h-auto py-4 bg-green-500/20 hover:bg-green-500/30 border-green-500/30 font-semibold"
                 onClick={() => setCurrentView('paid')}
               >
                 <span>View Paid Tasks</span>
@@ -267,7 +267,7 @@ export const SettingsDialog = ({
               
               <Button
                 variant="outline"
-                className="w-full justify-between h-auto py-4 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20"
+                className="w-full justify-between h-auto py-4 bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/30 font-semibold"
                 onClick={() => setShowManageClients(true)}
               >
                 <span>Manage Clients</span>
@@ -278,7 +278,7 @@ export const SettingsDialog = ({
                 <p className="text-xs text-muted-foreground mb-2 px-1">Data Management</p>
                 <Button
                   variant="outline"
-                  className="w-full justify-between h-auto py-4 bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20"
+                  className="w-full justify-between h-auto py-4 bg-orange-500/20 hover:bg-orange-500/30 border-orange-500/30 font-semibold"
                   onClick={() => setCurrentView('backup')}
                 >
                   <span>Backup & Restore</span>
