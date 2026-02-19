@@ -19,17 +19,23 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
   const [description, setDescription] = useState('');
   const [parts, setParts] = useState<Part[]>([]);
   const [needsFollowUp, setNeedsFollowUp] = useState(false);
-  const [newPart, setNewPart] = useState<Partial<Part>>({
+  const [newPart, setNewPart] = useState({
     name: '',
-    quantity: 1,
-    price: 0,
+    quantity: '',
+    price: '',
     description: '',
   });
 
   const handleAddPart = () => {
-    if (newPart.name && newPart.quantity && newPart.price !== undefined) {
-      setParts([...parts, newPart as Part]);
-      setNewPart({ name: '', quantity: 1, price: 0, description: '' });
+    if (newPart.name) {
+      const part: Part = {
+        name: newPart.name,
+        quantity: parseInt(newPart.quantity) || 1,
+        price: parseFloat(newPart.price) || 0,
+        description: newPart.description || '',
+      };
+      setParts([...parts, part]);
+      setNewPart({ name: '', quantity: '', price: '', description: '' });
     }
   };
 
@@ -45,8 +51,8 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
     if (newPart.name && newPart.name.trim() !== '') {
       finalParts.push({
         name: newPart.name,
-        quantity: newPart.quantity || 1,
-        price: newPart.price || 0,
+        quantity: parseInt(newPart.quantity) || 1,
+        price: parseFloat(newPart.price) || 0,
         description: newPart.description || '',
       } as Part);
     }
@@ -54,7 +60,7 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
     onComplete(description, finalParts, needsFollowUp);
     setDescription('');
     setParts([]);
-    setNewPart({ name: '', quantity: 1, price: 0, description: '' });
+    setNewPart({ name: '', quantity: '', price: '', description: '' });
     setNeedsFollowUp(false);
     onOpenChange(false);
   };
@@ -153,20 +159,24 @@ export const CompleteWorkDialog = ({ open, onOpenChange, onComplete }: CompleteW
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
                           <Label className="text-xs font-medium">Quantity</Label>
-                          <Input
+                        <Input
                             type="number"
                             value={newPart.quantity}
-                            onChange={(e) => setNewPart({ ...newPart, quantity: parseInt(e.target.value) || 1 })}
+                            onChange={(e) => setNewPart({ ...newPart, quantity: e.target.value })}
+                            onFocus={(e) => { if (e.target.value === '0') setNewPart(p => ({ ...p, quantity: '' })); e.target.select(); }}
+                            placeholder="1"
                             min={1}
                             className="h-9 text-sm"
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs font-medium">Price</Label>
-                          <Input
+                        <Input
                             type="number"
                             value={newPart.price}
-                            onChange={(e) => setNewPart({ ...newPart, price: parseFloat(e.target.value) || 0 })}
+                            onChange={(e) => setNewPart({ ...newPart, price: e.target.value })}
+                            onFocus={(e) => { if (e.target.value === '0') setNewPart(p => ({ ...p, price: '' })); e.target.select(); }}
+                            placeholder="0.00"
                             min={0}
                             step={0.01}
                             className="h-9 text-sm"

@@ -627,7 +627,7 @@ export const EditTaskDialog = ({
                       </div>
                       <div>
                         <Label className="text-[10px]">Price</Label>
-                        <Input type="number" min="0" step="0.01" value={part.price} onChange={e => handleUpdatePartPrice(session.id, partIndex, parseFloat(e.target.value) || 0)} className="h-7 text-xs" />
+                        <Input type="number" min="0" step="0.01" value={part.price} onChange={e => handleUpdatePartPrice(session.id, partIndex, parseFloat(e.target.value) || 0)} onFocus={(e) => e.target.select()} className="h-7 text-xs" />
                       </div>
                     </div>
                     <div>
