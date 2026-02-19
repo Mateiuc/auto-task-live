@@ -1,43 +1,41 @@
 
 
-## Fix Price and Quantity Input Fields - Remove Sticky "0" Problem
+## Fix Client Portal - Vehicles Not Fully Scrollable
 
 ### Problem
-When adding parts in the Complete Work dialog (and Edit Task dialog), the price field starts with `0`. On mobile, you can't easily clear it -- you end up typing in front of the zero (e.g., "120" becomes "1200"). The same issue affects the quantity field.
-
-### Root Cause
-The inputs use `value={newPart.price}` with a numeric value that defaults to `0`. Combined with `type="number"`, the `0` stays in the field and can't be naturally cleared by the user.
+When a client opens the shared portal link, they can only see 1-2 vehicles out of 6. The rest are cut off and not scrollable. This happens because the layout uses `flex-1 overflow-y-auto` inside a `min-h-screen flex flex-col` container, which can fail in mobile in-app browsers (WhatsApp, SMS apps) where viewport height behaves unpredictably.
 
 ### Solution
-Switch the price and quantity inputs to use **string state** so the field can be empty, and only convert to a number when saving. When the user focuses the field and the value is `0`, auto-clear it.
+Change the cost breakdown view layout to use a simpler, more reliable scrolling approach that works across all mobile browsers:
+
+- Remove the `flex flex-col` and `flex-1 overflow-y-auto` pattern
+- Use a standard block layout with the header fixed via `sticky top-0` (already in place)
+- Let the page body scroll naturally with normal document flow
 
 ### Changes
 
-**File: `src/components/CompleteWorkDialog.tsx`**
+**File: `src/pages/ClientPortal.tsx`** (lines 148-162)
 
-1. Change `newPart.price` and `newPart.quantity` to store as **strings** internally (`''` instead of `0` / `1`)
-2. Use `value={newPart.price}` as string -- empty string shows placeholder, not "0"
-3. On `onFocus`, if value is "0", clear it
-4. On `onBlur`, if value is empty, reset to default ("0" for price, "1" for quantity)
-5. Only convert to number when the "Add Part" button is clicked
-6. Same approach for the quantity field
+Change the cost breakdown view container from:
+```
+<div className="min-h-screen bg-background flex flex-col">
+  ...header...
+  <div className="flex-1 overflow-y-auto p-4">
+```
 
-Specifically:
-- Change initial state: `price: 0` becomes `price: ''` (display as empty with placeholder)
-- Add `placeholder="0.00"` to price and `placeholder="1"` to quantity
-- On change: store raw string value
-- On handleAddPart: parse to number with fallbacks
+To:
+```
+<div className="min-h-screen bg-background">
+  ...header...
+  <div className="p-4 pb-8">
+```
 
-**File: `src/components/EditTaskDialog.tsx`**
-
-Apply the same fix to the part price input in the edit dialog (line ~630):
-- On focus: select all text so user can type over it
-- Use `onFocus={(e) => e.target.select()}` so tapping the field selects the "0" and typing replaces it
+This removes the flex layout and `overflow-y-auto`, letting the browser handle scrolling naturally. Added `pb-8` for bottom padding so the last vehicle card isn't cut off by mobile browser chrome.
 
 ### Summary
 
 | File | Change |
 |------|--------|
-| `src/components/CompleteWorkDialog.tsx` | Use empty string defaults + placeholders for price/quantity inputs |
-| `src/components/EditTaskDialog.tsx` | Add `onFocus` select-all behavior to price input |
+| `src/pages/ClientPortal.tsx` | Remove flex/overflow layout, use natural page scrolling for the cost breakdown view |
 
+One file, 2 lines changed. The root cause is the constrained overflow container -- switching to natural scroll fixes it on all mobile browsers.
