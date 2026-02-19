@@ -13,7 +13,7 @@ import { ChevronLeft, Mail, Phone, DollarSign, Edit, Trash2, Save, X, Car, Print
 import jsPDF from 'jspdf';
 import { EditVehicleDialog } from './EditVehicleDialog';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
-import { generateAccessCode, calculateClientCosts, encodeClientData } from '@/lib/clientPortalUtils';
+import { generateAccessCode, calculateClientCosts, encodeClientData, generatePortalHtmlFile } from '@/lib/clientPortalUtils';
 
 interface ManageClientsDialogProps {
   open: boolean;
@@ -584,8 +584,44 @@ export const ManageClientsDialog = ({
                                   const summary = calculateClientCosts(client, vehicles, tasks, settings.defaultHourlyRate);
                                   const encoded = await encodeClientData(summary, code);
                                   const url = `${window.location.origin}/client-view#${encoded}`;
-                                  await navigator.clipboard.writeText(url);
-                                  toast({ title: 'Link Copied!', description: `Share this link with PIN: ${code}` });
+                                  
+                                  if (url.length <= 2000) {
+                                    await navigator.clipboard.writeText(url);
+                                    toast({ title: 'Link Copied!', description: `Share this link with PIN: ${code}` });
+                                  } else {
+                                    // URL too long - use file sharing fallback
+                                    const htmlBlob = generatePortalHtmlFile(summary, code);
+                                    const file = new File([htmlBlob], `${client.name.replace(/[^a-zA-Z0-9]/g, '_')}_portal.html`, { type: 'text/html' });
+                                    
+                                    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                                      try {
+                                        await navigator.share({
+                                          title: `Cost Breakdown - ${client.name}`,
+                                          text: `PIN: ${code}`,
+                                          files: [file],
+                                        });
+                                        toast({ title: 'Shared!', description: `PIN: ${code}` });
+                                      } catch (e: any) {
+                                        if (e.name !== 'AbortError') {
+                                          // Share was cancelled or failed - fallback to download
+                                          const a = document.createElement('a');
+                                          a.href = URL.createObjectURL(htmlBlob);
+                                          a.download = file.name;
+                                          a.click();
+                                          URL.revokeObjectURL(a.href);
+                                          toast({ title: 'File Downloaded', description: `Send it to your client. PIN: ${code}` });
+                                        }
+                                      }
+                                    } else {
+                                      // No Share API - download directly
+                                      const a = document.createElement('a');
+                                      a.href = URL.createObjectURL(htmlBlob);
+                                      a.download = file.name;
+                                      a.click();
+                                      URL.revokeObjectURL(a.href);
+                                      toast({ title: 'File Downloaded', description: `Send it to your client. PIN: ${code}` });
+                                    }
+                                  }
                                 }}
                                 className="h-8 text-xs hover:bg-primary/5 hover:border-primary/30 transition-colors"
                               >
