@@ -146,7 +146,7 @@ const ClientPortal = () => {
 
   // Cost breakdown view
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
       <header className="border-b px-4 py-3 flex items-center gap-2 bg-primary/10 sticky top-0 z-10">
         <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
           <ChevronLeft className="h-4 w-4" />
@@ -155,7 +155,7 @@ const ClientPortal = () => {
         <span className="font-bold text-foreground">Client Portal</span>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="p-4 pb-8">
         {costSummary && <ClientCostBreakdown costSummary={costSummary} />}
       </div>
     </div>
