@@ -1,61 +1,118 @@
 
 
-## Fix: Large Data URL Problem for Client Portal Sharing
+## Database-Backed Client Portal with Cloud Photo Storage
 
-### Problem
-When a client has many vehicles and sessions, the compressed+base64 data in the URL hash can exceed limits imposed by messaging apps (WhatsApp ~2KB, SMS ~1600 chars) or even some browsers (~64KB). Links get truncated and break.
+### Prerequisites
 
-### Solution: Two-Part Fix
+**Enable Lovable Cloud** -- one-click setup that creates a managed Supabase backend. This must be done first before any code changes.
 
-**Part 1 -- Slim the payload (reduce size by ~50-60%)**
+---
 
-Strip unnecessary data before encoding. The current payload includes full `Vehicle` objects (with `id`, `clientId`), full `Client` objects, and `Part.description`. The portal display only needs display-friendly fields.
+### Part 1: Database Schema and Storage
 
-Create a minimal "wire format" in `clientPortalUtils.ts`:
-- Vehicle: only keep `vin`, `make`, `model`, `year`, `color` (drop `id`, `clientId`)
-- Client: only keep `name` (drop `id`, `email`, `phone`, `hourlyRate`, `accessCode`, `createdAt`)
-- Sessions: keep `description`, `date`, `duration`, `laborCost`, `parts`, `partsCost`, `status` (already minimal)
-- Parts: keep `name`, `quantity`, `price` (drop `description`)
+**Migration 1 -- `client_portals` table:**
 
-Add a new `encodeClientDataSlim()` function that maps `ClientCostSummary` to this minimal format before compressing.
-
-**Part 2 -- Fallback to file sharing when URL is too long**
-
-After encoding, check the URL length. If it exceeds a safe threshold (2000 characters), instead of copying a URL:
-- Generate a small self-contained HTML file with the data embedded
-- Use the **Web Share API** (`navigator.share()` with a file) to let the mechanic send it via WhatsApp, email, etc.
-- The HTML file opens in the client's browser and renders the cost breakdown directly
-- If Share API is unavailable, fall back to downloading the file
-
-### Changes
-
-| File | Change |
-|------|--------|
-| `src/lib/clientPortalUtils.ts` | Add minimal wire format types, `slimDown()` helper to strip unnecessary fields before encoding, and update `encodeClientData` to use it. Add `generatePortalHtmlFile()` that creates a self-contained HTML string with embedded data |
-| `src/pages/ClientPortal.tsx` | Update `decodeClientData` usage to handle the slim format (map back to `ClientCostSummary`) |
-| `src/components/ManageClientsDialog.tsx` | After encoding, check URL length. If under 2000 chars, copy URL as before. If over, use Share API to share the generated HTML file. Show appropriate toast messages for each path |
-
-### Technical Details
-
-**Slim format example:**
 ```text
-Before: { client: { id, name, email, phone, hourlyRate, accessCode, createdAt }, vehicles: [{ vehicle: { id, clientId, vin, make, model, year, color }, sessions: [...] }] }
-
-After:  { n: "John", v: [{ vin, mk, md, yr, cl, s: [{ d: "Oil change", dt: 1708300800, dur: 3600, lc: 75, pc: 45, st: "completed", p: [{ n: "Filter", q: 1, pr: 15 }] }] }], tl: 150, tp: 90, gt: 240 }
+client_portals
+  id              text (PK, 8-char nanoid)
+  client_local_id text (unique, maps to local client ID)
+  client_name     text
+  access_code     text (4-digit PIN)
+  data            jsonb (slim cost breakdown payload)
+  updated_at      timestamptz (default now())
 ```
 
-**URL length check flow:**
-```text
-1. Generate slim payload + compress + base64
-2. Build URL string
-3. If URL.length <= 2000 --> copy to clipboard (current behavior)
-4. If URL.length > 2000 --> generate HTML file --> share via Share API or download
-```
+RLS: Public SELECT (PIN-protected in app). Writes via edge function with service role key.
 
-**Self-contained HTML file:**
-- Minimal HTML page with inline CSS (no external deps)
-- Data embedded as a JSON script tag
-- Simple JS renders the cost breakdown table
-- Works offline once opened
-- PIN verification included in the HTML
+**Migration 2 -- `session-photos` storage bucket:**
+
+Public bucket for work session photos, with a 5MB file size limit.
+
+---
+
+### Part 2: Edge Functions
+
+| Function | Method | Purpose |
+|----------|--------|---------|
+| `sync-portal` | POST | Upserts client portal data into `client_portals`, returns portal `id` |
+| `get-portal` | GET `?id=xxx` | Fetches portal data by short ID |
+| `upload-photo` | POST | Receives base64 photo, uploads to storage bucket, returns public URL |
+
+---
+
+### Part 3: Type Updates
+
+**`src/types/index.ts`:**
+- Add `portalId?: string` to `Client` interface
+- Add `cloudUrl?: string` to `SessionPhoto` interface
+
+---
+
+### Part 4: Cloud Sync Logic
+
+**`src/lib/clientPortalUtils.ts`:**
+- Add `syncPortalToCloud(clientId, summary, accessCode)` -- calls `sync-portal` edge function, returns portal ID
+- Add `fetchPortalFromCloud(portalId)` -- calls `get-portal` edge function
+- Extend `SlimSession` wire format with `photos` array (cloud URLs)
+
+**`src/services/photoStorageService.ts`:**
+- Add `uploadPhotoToCloud(base64, taskId, photoId)` -- calls `upload-photo`, returns public URL
+
+---
+
+### Part 5: Auto-Sync Triggers
+
+**`src/pages/Index.tsx`:**
+- After `handleCompleteWork` saves locally, call `syncPortalToCloud` in background
+- After photo capture, call `uploadPhotoToCloud` in background, save returned URL to `SessionPhoto.cloudUrl`
+- All cloud calls fail silently if offline
+
+---
+
+### Part 6: Sharing with Short URLs
+
+**`src/components/ManageClientsDialog.tsx`:**
+- "Share Link" now generates `https://yourdomain.com/client-view?id=k7x2m9pq`
+- If no `portalId` yet, triggers sync first
+- Falls back to hash/file method if sync fails
+
+---
+
+### Part 7: Client Portal View
+
+**`src/pages/ClientPortal.tsx`:**
+- Priority order: `?id=` (fetch from cloud) then `#hash` (legacy) then `/client/:id` (on-device)
+- All three paths continue to work
+
+**`src/components/ClientCostBreakdown.tsx`:**
+- Render photos from `cloudUrl` when present
+
+---
+
+### Part 8: Photo Compression
+
+Photos compressed client-side before upload (resize to 800px max, 70% JPEG quality) to maximize the 1GB storage limit.
+
+---
+
+### Implementation Order
+
+1. Enable Lovable Cloud
+2. Create database table + RLS policies
+3. Create storage bucket
+4. Build 3 edge functions (sync-portal, get-portal, upload-photo)
+5. Update types
+6. Add cloud sync utilities
+7. Wire up auto-sync in Index.tsx
+8. Update sharing dialog for short URLs
+9. Update ClientPortal.tsx for cloud fetch
+10. Add photo display to ClientCostBreakdown
+11. Add photo compression
+
+### Backward Compatibility
+
+- Old `#hash` links keep working
+- HTML file fallback still available
+- Local storage remains source of truth
+- Cloud sync fails silently if offline
 
