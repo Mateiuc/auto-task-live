@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreVertical, Edit, Wrench, Pause, Square, Trash, Camera as CameraIcon, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, DollarSign, CheckCircle2, Play, MoreVertical, Edit, Wrench, Pause, Square, Trash, Camera as CameraIcon } from 'lucide-react';
 import { formatDuration, formatCurrency, formatTime } from '@/lib/formatTime';
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
@@ -20,7 +20,6 @@ import { capacitorStorage } from '@/lib/capacitorStorage';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { ShareBillDialog } from './ShareBillDialog';
-import { useNavigate } from 'react-router-dom';
 interface TaskCardProps {
   task: Task;
   client: Client | undefined;
@@ -52,7 +51,6 @@ export const TaskCard = ({
   vehicleColorScheme
 }: TaskCardProps) => {
   const { toast } = useNotifications();
-  const navigate = useNavigate();
   // Get vehicle color scheme (use provided or compute from vehicle ID)
   const colorScheme = vehicleColorScheme || getVehicleColorScheme(vehicle?.id || task.vehicleId);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1085,12 +1083,6 @@ export const TaskCard = ({
                       <FileText className="h-4 w-4 mr-2" />
                       Print detail
                     </DropdownMenuItem>}
-                  {isCompleted && client && (
-                    <DropdownMenuItem onClick={() => navigate(`/client/${client.id}`)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Client Portal
-                    </DropdownMenuItem>
-                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
           </div>

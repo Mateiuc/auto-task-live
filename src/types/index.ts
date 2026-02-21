@@ -4,7 +4,6 @@ export interface Client {
   email?: string;
   phone?: string;
   hourlyRate?: number;
-  accessCode?: string;
   createdAt: Date;
 }
 

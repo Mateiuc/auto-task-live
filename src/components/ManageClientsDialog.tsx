@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +8,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Client, Vehicle, Task, Settings } from '@/types';
 import { useNotifications } from '@/hooks/useNotifications';
-import { ChevronLeft, Mail, Phone, DollarSign, Edit, Trash2, Save, X, Car, Printer, Play, KeyRound, Link2, Eye } from 'lucide-react';
+import { ChevronLeft, Mail, Phone, DollarSign, Edit, Trash2, Save, X, Car, Printer, Play } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { EditVehicleDialog } from './EditVehicleDialog';
 import { getVehicleColorScheme } from '@/lib/vehicleColors';
-import { generateAccessCode, calculateClientCosts, encodeClientData, generatePortalHtmlFile } from '@/lib/clientPortalUtils';
 
 interface ManageClientsDialogProps {
   open: boolean;
@@ -43,7 +41,6 @@ export const ManageClientsDialog = ({
   onStartWork,
 }: ManageClientsDialogProps) => {
   const { toast } = useNotifications();
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Client>>({});
@@ -531,7 +528,7 @@ export const ManageClientsDialog = ({
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex gap-2">
                               <Button 
                                 size="sm" 
                                 variant="outline" 
@@ -547,85 +544,6 @@ export const ManageClientsDialog = ({
                                 className="h-8 text-xs hover:bg-primary/5 hover:border-primary/30 transition-colors"
                               >
                                 <Edit className="h-3 w-3 mr-1" /> Edit
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  const code = client.accessCode || generateAccessCode();
-                                  if (!client.accessCode) {
-                                    onUpdateClient(client.id, { accessCode: code });
-                                  }
-                                  toast({ title: 'Access Code', description: `PIN: ${code}` });
-                                }}
-                                className="h-8 text-xs hover:bg-primary/5 hover:border-primary/30 transition-colors"
-                              >
-                                <KeyRound className="h-3 w-3 mr-1" /> {client.accessCode ? `PIN: ${client.accessCode}` : 'Set PIN'}
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  onOpenChange(false);
-                                  navigate(`/client/${client.id}`);
-                                }}
-                                className="h-8 text-xs hover:bg-primary/5 hover:border-primary/30 transition-colors"
-                              >
-                                <Eye className="h-3 w-3 mr-1" /> Portal
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={async () => {
-                                  const code = client.accessCode || generateAccessCode();
-                                  if (!client.accessCode) {
-                                    onUpdateClient(client.id, { accessCode: code });
-                                  }
-                                  const summary = calculateClientCosts(client, vehicles, tasks, settings.defaultHourlyRate);
-                                  const encoded = await encodeClientData(summary, code);
-                                  const url = `${window.location.origin}/client-view#${encoded}`;
-                                  
-                                  if (url.length <= 2000) {
-                                    await navigator.clipboard.writeText(url);
-                                    toast({ title: 'Link Copied!', description: `Share this link with PIN: ${code}` });
-                                  } else {
-                                    // URL too long - use file sharing fallback
-                                    const htmlBlob = generatePortalHtmlFile(summary, code);
-                                    const file = new File([htmlBlob], `${client.name.replace(/[^a-zA-Z0-9]/g, '_')}_portal.html`, { type: 'text/html' });
-                                    
-                                    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-                                      try {
-                                        await navigator.share({
-                                          title: `Cost Breakdown - ${client.name}`,
-                                          text: `PIN: ${code}`,
-                                          files: [file],
-                                        });
-                                        toast({ title: 'Shared!', description: `PIN: ${code}` });
-                                      } catch (e: any) {
-                                        if (e.name !== 'AbortError') {
-                                          // Share was cancelled or failed - fallback to download
-                                          const a = document.createElement('a');
-                                          a.href = URL.createObjectURL(htmlBlob);
-                                          a.download = file.name;
-                                          a.click();
-                                          URL.revokeObjectURL(a.href);
-                                          toast({ title: 'File Downloaded', description: `Send it to your client. PIN: ${code}` });
-                                        }
-                                      }
-                                    } else {
-                                      // No Share API - download directly
-                                      const a = document.createElement('a');
-                                      a.href = URL.createObjectURL(htmlBlob);
-                                      a.download = file.name;
-                                      a.click();
-                                      URL.revokeObjectURL(a.href);
-                                      toast({ title: 'File Downloaded', description: `Send it to your client. PIN: ${code}` });
-                                    }
-                                  }
-                                }}
-                                className="h-8 text-xs hover:bg-primary/5 hover:border-primary/30 transition-colors"
-                              >
-                                <Link2 className="h-3 w-3 mr-1" /> Share Link
                               </Button>
                               <Button 
                                 size="sm" 
